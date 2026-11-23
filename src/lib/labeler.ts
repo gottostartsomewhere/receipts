@@ -1,10 +1,10 @@
-import { CLOUD_LABEL_MODEL, firebaseConfigured, labelModel, nanoState } from "./firebase";
+import { CLOUD_LABEL_MODEL, firebaseConfigured, LABEL_BATCH, labelModel, nanoState, parseLabelLine } from "./firebase";
 import { recordCloud, recordOnDevice } from "./ledger";
 import { normalizeName } from "./summary";
-import { CATEGORIES, type Category, type ItemLabel, type Order } from "./types";
+import type { Category, ItemLabel, Order } from "./types";
 
-const CACHE_KEY = "labels:v1";
-const BATCH = 10;
+// v2: generic labels ("biryani", not "chicken biryani") from the one-line-per-item format.
+const CACHE_KEY = "labels:v2";
 
 // ---------- Local rules: the fallback when Nano is missing and the cloud is not allowed ----------
 
@@ -84,10 +84,6 @@ export interface LabelOptions {
   onProgress?: (p: LabelProgress) => void;
 }
 
-function isCategory(x: unknown): x is Category {
-  return typeof x === "string" && (CATEGORIES as readonly string[]).includes(x);
-}
-
 export async function labelItems(names: string[], opts: LabelOptions): Promise<Map<string, ItemLabel>> {
   const cache = await loadCache();
   const out = new Map<string, ItemLabel>();
@@ -103,55 +99,78 @@ export async function labelItems(names: string[], opts: LabelOptions): Promise<M
 
   const nano = await nanoState();
   const canModel = firebaseConfigured && (nano === "available" || opts.allowCloud);
+  const set = (name: string, label: ItemLabel) => {
+    out.set(normalizeName(name), label);
+    cache[normalizeName(name)] = label;
+  };
 
   if (!canModel) {
-    for (const name of todo) {
-      const l = ruleLabel(name);
-      out.set(normalizeName(name), l);
-      cache[normalizeName(name)] = l;
-    }
+    const latest = todo.map((name) => {
+      const label = ruleLabel(name);
+      set(name, label);
+      return { name, label };
+    });
     await saveCache(cache);
-    opts.onProgress?.({ done: names.length, total: names.length, latest: todo.map((name) => ({ name, label: out.get(normalizeName(name))! })), source: "rules" });
+    opts.onProgress?.({ done: names.length, total: names.length, latest, source: "rules" });
     return out;
   }
 
+  // With Nano present, PREFER_ON_DEVICE stays on the laptop; without it, the person opted in.
+  const goesToCloud = opts.allowCloud && nano !== "available";
   const model = labelModel(opts.allowCloud);
-  for (let i = 0; i < todo.length; i += BATCH) {
+
+  for (let i = 0; i < todo.length; i += LABEL_BATCH) {
     if (opts.signal?.aborted) break;
-    const batch = todo.slice(i, i + BATCH);
+    const batch = todo.slice(i, i + LABEL_BATCH);
     const prompt = batch.map((name, j) => `${j + 1}. ${name}`).join("\n");
-    let parsed: { id: number; label: string; category: string }[] = [];
-    let source: LabelProgress["source"] = "on_device";
+    const labelled = new Set<number>();
+    let source: LabelProgress["source"] = goesToCloud ? "in_cloud" : "on_device";
+
+    // Each line is printed the moment Nano finishes it, so the receipt prints item by item.
+    const take = (line: string) => {
+      const parsed = parseLabelLine(line);
+      if (!parsed || parsed.id < 1 || parsed.id > batch.length || labelled.has(parsed.id)) return;
+      labelled.add(parsed.id);
+      const name = batch[parsed.id - 1];
+      const label: ItemLabel = { label: parsed.label, category: parsed.category, source: source === "in_cloud" ? "in_cloud" : "on_device" };
+      set(name, label);
+      done += 1;
+      opts.onProgress?.({ done, total: names.length, latest: [{ name, label }], source });
+    };
+
     try {
-      const result = await model.generateContent(prompt);
-      source = result.response.inferenceSource === "in_cloud" ? "in_cloud" : "on_device";
-      if (source === "in_cloud") {
-        await recordCloud({ purpose: "Label items (you allowed this)", model: CLOUD_LABEL_MODEL, sent: batch.join("\n") });
-      } else {
-        await recordOnDevice();
+      if (goesToCloud) await recordCloud({ purpose: "Label items (you allowed this)", model: CLOUD_LABEL_MODEL, sent: batch.join("\n") });
+      const result = await model.generateContentStream(prompt, { signal: opts.signal });
+      let buffer = "";
+      for await (const chunk of result.stream) {
+        if (chunk.inferenceSource === "in_cloud") source = "in_cloud";
+        buffer += chunk.text();
+        let nl: number;
+        while ((nl = buffer.indexOf("\n")) >= 0) {
+          take(buffer.slice(0, nl));
+          buffer = buffer.slice(nl + 1);
+        }
       }
-      parsed = (JSON.parse(result.response.text()) as { items?: typeof parsed }).items ?? [];
+      take(buffer);
+      if (source === "on_device") await recordOnDevice();
     } catch (err) {
-      console.warn("Receipts: labelling batch failed, using local rules for it", err);
-      source = "rules";
+      if (!opts.signal?.aborted) console.warn("Receipts: labelling batch failed, using local rules for the rest of it", err);
     }
-    const latest: LabelProgress["latest"] = [];
-    batch.forEach((name, j) => {
-      const hit = parsed.find((p) => p.id === j + 1);
-      const label: ItemLabel =
-        hit && isCategory(hit.category) && hit.label
-          ? { label: hit.label.toLowerCase().trim().slice(0, 32), category: hit.category, source: source === "in_cloud" ? "in_cloud" : "on_device" }
-          : ruleLabel(name);
-      out.set(normalizeName(name), label);
-      cache[normalizeName(name)] = label;
-      latest.push({ name, label });
-    });
-    done += batch.length;
+
+    // Anything the model skipped in this batch gets a local label, so the year stays complete.
+    const missed = batch.filter((_, j) => !labelled.has(j + 1));
+    if (missed.length) {
+      const latest = missed.map((name) => {
+        const label = ruleLabel(name);
+        set(name, label);
+        return { name, label };
+      });
+      done += missed.length;
+      opts.onProgress?.({ done, total: names.length, latest, source: "rules" });
+    }
     await saveCache(cache);
-    opts.onProgress?.({ done, total: names.length, latest, source });
   }
-  // Anything skipped by an abort still gets a local label so the summary is complete.
-  for (const name of todo) if (!out.has(normalizeName(name))) out.set(normalizeName(name), ruleLabel(name));
+  for (const name of todo) if (!out.has(normalizeName(name))) set(name, ruleLabel(name));
   return out;
 }
 

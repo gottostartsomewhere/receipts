@@ -9,7 +9,7 @@ import {
   type AI,
   type GenerativeModel,
 } from "firebase/ai";
-import { CATEGORIES } from "./types";
+import type { Category } from "./types";
 
 declare global {
   // Read by the App Check SDK before initialisation.
@@ -59,44 +59,44 @@ export function getFirebase(): { app: FirebaseApp; ai: AI } {
 
 // ---------- Item labelling (private data: item names) ----------
 
-export const LABEL_SYSTEM_PROMPT =
-  "You label online shopping items. For each numbered item return its id, a short everyday label of 1-3 lowercase words " +
-  '(for example "biryani", "wireless mouse", "running shoes", "face serum") and one category. ' +
-  "Restaurant dishes are food_delivery. Packaged food bought from a shop is groceries or snacks.";
+// Nano runs on the laptop's CPU or GPU, and every output token costs time. So the answer is
+// one short line per item ("3|face serum|beauty") with one-word categories, not JSON. On a
+// 2022 i5 laptop this took labelling from ~8 s to ~1.4 s per item.
 
-/** JSON schema for Chrome's Prompt API responseConstraint. */
-const LABEL_JSON_SCHEMA = {
-  type: "object",
-  properties: {
-    items: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          id: { type: "integer" },
-          label: { type: "string" },
-          category: { type: "string", enum: [...CATEGORIES] },
-        },
-        required: ["id", "label", "category"],
-      },
-    },
-  },
-  required: ["items"],
+/** One-word categories the model writes, mapped to Receipts' categories. */
+export const SHORT_CATEGORIES: Record<string, Category> = {
+  food: "food_delivery",
+  grocery: "groceries",
+  snack: "snacks",
+  tech: "electronics",
+  fashion: "fashion",
+  book: "books",
+  home: "home",
+  beauty: "beauty",
+  travel: "travel",
+  fun: "entertainment",
+  stationery: "stationery",
+  other: "other",
 };
+const SHORT = Object.keys(SHORT_CATEGORIES).join("|");
 
-const LABEL_CLOUD_SCHEMA = Schema.object({
-  properties: {
-    items: Schema.array({
-      items: Schema.object({
-        properties: {
-          id: Schema.integer(),
-          label: Schema.string(),
-          category: Schema.enumString({ enum: [...CATEGORIES] }),
-        },
-      }),
-    }),
-  },
-});
+export const LABEL_BATCH = 20;
+
+export const LABEL_SYSTEM_PROMPT =
+  "Label shopping items. For each numbered item write one line: number|label|category. " +
+  "The label is 1 to 3 lowercase words naming the generic thing, like biryani, wireless mouse, face serum, running shoes. " +
+  `The category is one of: ${Object.keys(SHORT_CATEGORIES).join(", ")}. Restaurant dishes are food.`;
+
+/** Grammar for Chrome's Prompt API: Nano can only produce well-formed lines. */
+const LABEL_LINES = new RegExp(`^(\\d{1,2}\\|[a-z][a-z0-9 '-]{0,28}\\|(${SHORT})\\n?){1,${LABEL_BATCH}}$`);
+
+export function parseLabelLine(line: string): { id: number; label: string; category: Category } | null {
+  const m = /^\s*(\d{1,2})\s*\|\s*([^|]{1,40}?)\s*\|\s*([a-z]+)\s*$/i.exec(line);
+  if (!m) return null;
+  const category = SHORT_CATEGORIES[m[3].toLowerCase()];
+  const label = m[2].toLowerCase().trim();
+  return category && label ? { id: Number(m[1]), label: label.slice(0, 32), category } : null;
+}
 
 /**
  * Item names are private, so labelling runs ONLY_ON_DEVICE by default. If Nano is missing,
@@ -113,12 +113,12 @@ export function labelModel(allowCloud: boolean): GenerativeModel {
         expectedOutputs: [{ type: "text", languages: ["en"] }],
         initialPrompts: [{ role: "system", content: [{ type: "text", value: LABEL_SYSTEM_PROMPT }] }],
       },
-      promptOptions: { responseConstraint: LABEL_JSON_SCHEMA },
+      promptOptions: { responseConstraint: LABEL_LINES },
     },
     inCloudParams: {
       model: CLOUD_LABEL_MODEL,
       systemInstruction: LABEL_SYSTEM_PROMPT,
-      generationConfig: { responseMimeType: "application/json", responseSchema: LABEL_CLOUD_SCHEMA, temperature: 0 },
+      generationConfig: { responseMimeType: "text/plain", temperature: 0, maxOutputTokens: 800 },
     },
   });
 }
@@ -162,6 +162,29 @@ export function wrapModel(model: string): GenerativeModel {
       generationConfig: { responseMimeType: "application/json", responseSchema: WRAP_SCHEMA, temperature: 1 },
     },
   }, { timeout: WRAP_TIMEOUT_MS });
+}
+
+// ---------- Warm-up ----------
+
+let warmSession: { destroy: () => void } | undefined;
+
+/**
+ * Loading Nano into memory takes 15-40 s on a mid-range laptop. Holding one idle session while
+ * the start screen is open means the first real request (made by Firebase AI Logic) starts warm.
+ * No prompt is sent here; this only asks Chrome to load the model.
+ */
+export async function warmNano(): Promise<void> {
+  if (warmSession) return;
+  const lm = (globalThis as { LanguageModel?: { create: (o?: object) => Promise<{ destroy: () => void }> } }).LanguageModel;
+  if (!lm || (await nanoState()) !== "available") return;
+  try {
+    warmSession = await lm.create({
+      expectedInputs: [{ type: "text", languages: ["en"] }],
+      expectedOutputs: [{ type: "text", languages: ["en"] }],
+    });
+  } catch {
+    /* warming is best effort */
+  }
 }
 
 // ---------- Nano availability (read straight from Chrome, no network) ----------

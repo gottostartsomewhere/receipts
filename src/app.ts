@@ -1,5 +1,5 @@
 import { downloadCanvas, drawCard, type CardSpec } from "./lib/cards";
-import { firebaseConfigured, labelModel, nanoState, type NanoState } from "./lib/firebase";
+import { firebaseConfigured, labelModel, nanoState, warmNano, type NanoState } from "./lib/firebase";
 import { labelItems, uniqueItemNames } from "./lib/labeler";
 import { getLedger, onLedgerChange, recordRead, type DeviceLedger } from "./lib/ledger";
 import { sampleOrders, type PersonaId } from "./lib/sample";
@@ -40,7 +40,9 @@ async function refreshNano() {
   $("nano-state").textContent = text[nano];
   $("cloud-optin").hidden = nano !== "unavailable" || !firebaseConfigured;
 }
-void refreshNano();
+void refreshNano().then(() => {
+  if (nano === "available") void warmNano();
+});
 
 $("start").addEventListener("click", async () => {
   const persona = (document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value ?? "chennai") as PersonaId;
