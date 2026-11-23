@@ -26,10 +26,11 @@
 
           <fieldset class="lines">
             <legend>WHERE TO LOOK</legend>
-            <label class="line check"><input type="checkbox" name="store" value="amazon_in" /><span>Amazon.in</span><span class="dots"></span><span class="tag">soon</span></label>
-            <label class="line check"><input type="checkbox" name="store" value="amazon_com" /><span>Amazon.com</span><span class="dots"></span><span class="tag">soon</span></label>
-            <label class="line check"><input type="checkbox" name="store" value="swiggy" /><span>Swiggy</span><span class="dots"></span><span class="tag">soon</span></label>
-            <label class="line check"><input type="checkbox" name="store" value="zomato" /><span>Zomato</span><span class="dots"></span><span class="tag">soon</span></label>
+            <label class="line check"><input type="checkbox" name="store" value="amazon_in" /><span>Amazon.in</span><span class="dots"></span><span class="tag">orders + items</span></label>
+            <label class="line check"><input type="checkbox" name="store" value="amazon_com" /><span>Amazon.com</span><span class="dots"></span><span class="tag">orders + items</span></label>
+            <label class="line check"><input type="checkbox" name="store" value="swiggy" /><span>Swiggy</span><span class="dots"></span><span class="tag">food orders</span></label>
+            <label class="line check"><input type="checkbox" name="store" value="zomato" /><span>Zomato</span><span class="dots"></span><span class="tag">food orders</span></label>
+            <p class="small-note">Each store opens in a background tab using your existing sign-in, then closes. Receipts never reads delivery addresses.</p>
           </fieldset>
 
           <fieldset class="lines">
@@ -44,7 +45,8 @@
             <span>No Nano here. Let the cloud label item names (never prices, dates or addresses).</span>
           </label>
 
-          <button class="print" id="start" type="button">PRINT MY YEAR</button>
+          <p class="error" id="start-note" hidden></p>
+          <button class="print" id="start" type="button">PRINT A SAMPLE YEAR</button>
         </section>
 
         <section id="screen-reading" class="screen" hidden>

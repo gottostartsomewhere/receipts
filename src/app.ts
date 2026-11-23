@@ -3,6 +3,8 @@ import { firebaseConfigured, labelModel, nanoState, warmNano, type NanoState } f
 import { labelItems, uniqueItemNames } from "./lib/labeler";
 import { getLedger, onLedgerChange, recordRead, type DeviceLedger } from "./lib/ledger";
 import { sampleOrders, type PersonaId } from "./lib/sample";
+import { readStore, STORES, type StoreInfo } from "./lib/stores/readers";
+import { NotSignedIn } from "./lib/stores/tab";
 import { countFacts, formatMoney, normalizeName, summarize, toCloudPayload, type CloudPayload } from "./lib/summary";
 import { CATEGORY_NAMES, type ItemLabel, type Order } from "./lib/types";
 import { localWrapped, writeWrapped, type Wrapped } from "./lib/wrapped";
@@ -25,8 +27,13 @@ const state: { orders: Order[]; labels: Map<string, ItemLabel>; payload?: CloudP
 
 $("today").textContent = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
 
-// Live store connectors land next; until then the sample years drive the flow.
-document.querySelectorAll<HTMLInputElement>('input[name="store"]').forEach((el) => (el.disabled = true));
+// Pick stores, or leave them all unticked to use a sample year.
+document.querySelectorAll<HTMLInputElement>('input[name="store"]').forEach((el) =>
+  el.addEventListener("change", () => {
+    const any = [...document.querySelectorAll<HTMLInputElement>('input[name="store"]')].some((s) => s.checked);
+    $("start").textContent = any ? "READ MY ORDERS" : "PRINT A SAMPLE YEAR";
+  }),
+);
 
 let nano: NanoState = "unavailable";
 async function refreshNano() {
@@ -47,6 +54,16 @@ void refreshNano().then(() => {
 $("start").addEventListener("click", async () => {
   const persona = (document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value ?? "chennai") as PersonaId;
   const allowCloud = $<HTMLInputElement>("allow-cloud").checked;
+  const chosen = STORES.filter((s) => document.querySelector<HTMLInputElement>(`input[name="store"][value="${s.id}"]`)?.checked);
+  // Ask for access to only the chosen stores. This must be the first await, inside the click.
+  if (chosen.length) {
+    const granted = await chrome.permissions.request({ origins: chosen.flatMap((s) => s.origins) });
+    if (!granted) {
+      $("start-note").textContent = "Receipts needs permission to open those stores' order pages. Nothing was read.";
+      $("start-note").hidden = false;
+      return;
+    }
+  }
   // Chrome only starts a model download from a user gesture, so do it here.
   if (firebaseConfigured && (nano === "downloadable" || nano === "downloading")) {
     $("nano-state").textContent = "DOWNLOADING 0%";
@@ -54,7 +71,7 @@ $("start").addEventListener("click", async () => {
       .initializeDeviceModel((p) => ($("nano-state").textContent = `DOWNLOADING ${Math.round(p * 100)}%`))
       .then(refreshNano);
   }
-  await run(sampleOrders(persona, YEAR), allowCloud);
+  await run(chosen.length ? () => loadStores(chosen) : () => loadSample(persona), allowCloud);
 });
 
 // ---------- Reading + labelling ----------
@@ -94,27 +111,65 @@ function setProgress(fraction: number) {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function run(orders: Order[], allowCloud: boolean) {
-  state.orders = orders;
+/** Prints a sample year quickly, the way a real read would arrive. */
+async function loadSample(persona: PersonaId): Promise<Order[]> {
+  const orders = sampleOrders(persona, YEAR);
+  for (let i = 0; i < orders.length; i++) {
+    $("count-orders").textContent = String(i + 1);
+    if (i % 6 === 0 || i === orders.length - 1) {
+      feedLine(orders[i].merchant, formatMoney(orders[i].total, orders[i].currency));
+      setProgress((i + 1) / orders.length);
+      await sleep(12);
+    }
+  }
+  return orders;
+}
+
+/** Reads each chosen store in a background tab. A store that fails is skipped, not fatal. */
+async function loadStores(stores: StoreInfo[]): Promise<Order[]> {
+  const all: Order[] = [];
+  for (const [n, store] of stores.entries()) {
+    $("reading-title").textContent = `READING ${store.label}`;
+    feedLine(`Opening ${store.label} in a background tab`, "");
+    let printed = 0;
+    try {
+      const orders = await readStore(store, YEAR, (soFar) => {
+        for (const o of soFar.slice(printed)) feedLine(o.merchant, formatMoney(o.total, o.currency));
+        printed = soFar.length;
+        $("count-orders").textContent = String(all.length + soFar.length);
+      });
+      all.push(...orders);
+      feedLine(`${store.label}: ${orders.length} orders in ${YEAR}`, "DONE");
+    } catch (err) {
+      console.warn(`Receipts: could not read ${store.label}`, err);
+      feedLine(err instanceof NotSignedIn ? `${store.label}: not signed in` : `${store.label}: could not read`, "SKIPPED");
+    }
+    $("count-orders").textContent = String(all.length);
+    setProgress((n + 1) / stores.length);
+  }
+  return all;
+}
+
+async function run(load: () => Promise<Order[]>, allowCloud: boolean) {
   state.abort = new AbortController();
   $("feed").replaceChildren();
   $("count-orders").textContent = "0";
   $("count-items").textContent = "0";
+  $("start-note").hidden = true;
   setProgress(0);
   show("screen-reading");
 
-  // 1. Orders: structured data from the store, read locally. Quick, so we let it print.
+  // 1. Orders: structured data from the store, read on this laptop.
   $("reading-title").textContent = "READING ORDERS";
+  const orders = await load();
   const delivered = orders.filter((o) => o.date.startsWith(String(YEAR)));
-  for (let i = 0; i < delivered.length; i++) {
-    const o = delivered[i];
-    $("count-orders").textContent = String(i + 1);
-    if (i % 6 === 0 || i === delivered.length - 1) {
-      feedLine(o.merchant, formatMoney(o.total, o.currency));
-      setProgress((i + 1) / delivered.length);
-      await sleep(12);
-    }
+  if (delivered.length === 0) {
+    $("start-note").textContent = `No ${YEAR} orders found. Sign in to the store in Chrome first, or try a sample year.`;
+    $("start-note").hidden = false;
+    show("screen-start");
+    return;
   }
+  state.orders = orders;
 
   // 2. Items: Gemini Nano turns messy product names into labels, on this laptop.
   const names = uniqueItemNames(delivered);
