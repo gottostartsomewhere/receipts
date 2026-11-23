@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Receipts</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="desk">
+      <article class="paper" id="paper" aria-live="polite">
+        <header class="masthead">
+          <p class="brand" aria-label="Receipts">R E C E I P T S</p>
+          <p class="tagline">your year, itemised</p>
+          <hr class="rule" />
+          <dl class="meta">
+            <div><dt>STORE</dt><dd>this laptop</dd></div>
+            <div><dt>CASHIER</dt><dd>Gemini Nano</dd></div>
+            <div><dt>DATE</dt><dd id="today"></dd></div>
+          </dl>
+          <hr class="rule" />
+        </header>
+
+        <section id="screen-start" class="screen">
+          <p class="note">Receipts reads your order history <strong>on this laptop</strong>. The cloud only gets a handful of rounded totals, and you see every one of them before anything is sent.</p>
+
+          <fieldset class="lines">
+            <legend>WHERE TO LOOK</legend>
+            <label class="line check"><input type="checkbox" name="store" value="amazon_in" /><span>Amazon.in</span><span class="dots"></span><span class="tag">soon</span></label>
+            <label class="line check"><input type="checkbox" name="store" value="amazon_com" /><span>Amazon.com</span><span class="dots"></span><span class="tag">soon</span></label>
+            <label class="line check"><input type="checkbox" name="store" value="swiggy" /><span>Swiggy</span><span class="dots"></span><span class="tag">soon</span></label>
+            <label class="line check"><input type="checkbox" name="store" value="zomato" /><span>Zomato</span><span class="dots"></span><span class="tag">soon</span></label>
+          </fieldset>
+
+          <fieldset class="lines">
+            <legend>OR TRY A SAMPLE YEAR</legend>
+            <label class="line check"><input type="radio" name="sample" value="chennai" checked /><span>Sample: Chennai</span><span class="dots"></span><span>₹</span></label>
+            <label class="line check"><input type="radio" name="sample" value="seattle" /><span>Sample: Seattle</span><span class="dots"></span><span>$</span></label>
+          </fieldset>
+
+          <div class="line status"><span>GEMINI NANO</span><span class="dots"></span><span id="nano-state">checking</span></div>
+          <label class="line check small" id="cloud-optin" hidden>
+            <input type="checkbox" id="allow-cloud" />
+            <span>No Nano here. Let the cloud label item names (never prices, dates or addresses).</span>
+          </label>
+
+          <button class="print" id="start" type="button">PRINT MY YEAR</button>
+        </section>
+
+        <section id="screen-reading" class="screen" hidden>
+          <p class="section-title" id="reading-title">READING ORDERS</p>
+          <div class="tally">
+            <div><span class="big" id="count-orders">0</span><span>orders</span></div>
+            <div><span class="big" id="count-items">0</span><span>items understood</span></div>
+          </div>
+          <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><span></span></div>
+          <ol class="feed" id="feed"></ol>
+          <button class="ghost" id="stop" type="button">Stop and use what's read so far</button>
+        </section>
+
+        <section id="screen-review" class="screen" hidden>
+          <p class="section-title">THE ONLY THINGS THAT WOULD LEAVE THIS LAPTOP</p>
+          <p class="note" id="review-note"></p>
+          <dl class="payload" id="payload"></dl>
+          <hr class="rule" />
+          <button class="print" id="send" type="button">SEND THESE TO GEMINI</button>
+          <button class="ghost" id="keep-local" type="button">Keep everything on this laptop</button>
+          <p class="error" id="send-error" hidden></p>
+        </section>
+
+        <section id="screen-wrapped" class="screen" hidden>
+          <p class="section-title" id="persona"></p>
+          <div class="cards" id="cards"></div>
+          <p class="roast" id="roast"></p>
+          <p class="comparison" id="comparison"></p>
+          <div class="closing" id="closing"></div>
+          <button class="print" id="save-all" type="button">SAVE ALL CARDS</button>
+          <button class="ghost" id="again" type="button">Start over</button>
+        </section>
+
+        <footer class="ledger">
+          <hr class="rule" />
+          <details id="ledger">
+            <summary>WHAT LEFT THIS DEVICE</summary>
+            <div id="ledger-body"></div>
+          </details>
+          <p class="thanks">THANK YOU FOR NOT UPLOADING YOUR LIFE</p>
+          <div class="barcode" aria-hidden="true"></div>
+        </footer>
+      </article>
+    </main>
+    <script type="module" src="./app.ts"></script>
+  </body>
+</html>
