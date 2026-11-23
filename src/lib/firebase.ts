@@ -21,8 +21,8 @@ const env = import.meta.env;
 
 export const firebaseConfigured = Boolean(env.VITE_FIREBASE_API_KEY && env.VITE_FIREBASE_APP_ID);
 
-/** Cloud model for the creative work on the summary. */
-export const CLOUD_MODEL = env.VITE_CLOUD_MODEL || "gemini-3.8-flash";
+/** Cloud models for the creative work on the summary, tried in order if one is overloaded. */
+export const CLOUD_MODELS = [...new Set([env.VITE_CLOUD_MODEL || "gemini-3.5-flash-lite", "gemini-3.8-flash"])];
 /** Cloud model used only if the person opts in to cloud labelling on a machine without Nano. */
 export const CLOUD_LABEL_MODEL = "gemini-3.5-flash-lite";
 
@@ -149,16 +149,19 @@ const WRAP_SCHEMA = Schema.object({
   },
 });
 
-export function wrapModel(): GenerativeModel {
+/** Give up on one cloud model after this long and try the next, so nobody stares at a spinner. */
+export const WRAP_TIMEOUT_MS = 30_000;
+
+export function wrapModel(model: string): GenerativeModel {
   const { ai } = getFirebase();
   return getGenerativeModel(ai, {
     mode: InferenceMode.ONLY_IN_CLOUD,
     inCloudParams: {
-      model: CLOUD_MODEL,
+      model,
       systemInstruction: WRAP_SYSTEM_PROMPT,
       generationConfig: { responseMimeType: "application/json", responseSchema: WRAP_SCHEMA, temperature: 1 },
     },
-  });
+  }, { timeout: WRAP_TIMEOUT_MS });
 }
 
 // ---------- Nano availability (read straight from Chrome, no network) ----------

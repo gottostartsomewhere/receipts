@@ -15,10 +15,10 @@ export interface CardMeta {
 
 const W = 1080;
 const H = 1920;
-const DESKS = ["#c8452f", "#2f6f6a", "#e0a526", "#3b3a8f", "#7a3b5c", "#1d1b17"];
-const PAPER = "#fbf8f1";
-const INK = "#1d1b17";
-const SOFT = "#6b6457";
+const DESKS = ["#c8452f", "#2f6f6a", "#e0a526", "#3b3a8f", "#7a3b5c", "#1c1c1a"];
+const PAPER = "#fcfcfa";
+const INK = "#1c1c1a";
+const SOFT = "#5a5a56";
 const STAMP = "#b0322a";
 const FONT = '"IBM Plex Mono", ui-monospace, Consolas, monospace';
 
@@ -98,7 +98,6 @@ function barcode(ctx: CanvasRenderingContext2D, x: number, y: number, w: number,
 function stamp(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number) {
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(-0.07);
   ctx.font = `700 30px ${FONT}`;
   const tw = ctx.measureText(text).width;
   ctx.strokeStyle = STAMP;
@@ -112,8 +111,15 @@ function stamp(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: numb
   ctx.restore();
 }
 
-export async function drawCard(spec: CardSpec, meta: CardMeta): Promise<HTMLCanvasElement> {
+export async function drawCard(input: CardSpec, meta: CardMeta): Promise<HTMLCanvasElement> {
   await loadCardFonts();
+  // Receipts print in capitals.
+  const spec: CardSpec = {
+    kicker: input.kicker.toUpperCase(),
+    headline: input.headline.toUpperCase(),
+    line: input.line.toUpperCase(),
+  };
+  const footer = meta.footer.toUpperCase();
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
@@ -143,7 +149,7 @@ export async function drawCard(spec: CardSpec, meta: CardMeta): Promise<HTMLCanv
   ctx.textAlign = "left";
   ctx.fillStyle = SOFT;
   ctx.font = `600 34px ${FONT}`;
-  ctx.fillText(spec.kicker.toUpperCase(), left, py + 340);
+  ctx.fillText(spec.kicker, left, py + 340);
 
   // Headline: largest size that fits in three lines.
   ctx.fillStyle = INK;
@@ -171,7 +177,7 @@ export async function drawCard(spec: CardSpec, meta: CardMeta): Promise<HTMLCanv
   dashed(ctx, left, bottom - 400, inner);
   ctx.font = `400 26px ${FONT}`;
   ctx.fillStyle = SOFT;
-  wrap(ctx, meta.footer, inner).slice(0, 2).forEach((l, i) => ctx.fillText(l, left, bottom - 340 + i * 38));
+  wrap(ctx, footer, inner).slice(0, 2).forEach((l, i) => ctx.fillText(l, left, bottom - 340 + i * 38));
   barcode(ctx, left, bottom - 240, inner, 90, meta.index * 31 + meta.year);
   ctx.textAlign = "center";
   ctx.fillText(`${meta.index + 1} / ${meta.total}`, W / 2, bottom - 100);

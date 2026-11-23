@@ -133,7 +133,7 @@ async function run(orders: Order[], allowCloud: boolean) {
             ? { kind: "rules", text: "LOCAL RULES" }
             : { kind: "device", text: "ON DEVICE" };
       for (const { name, label } of p.latest) {
-        feedLine(name, "", `→ ${label.label} · ${CATEGORY_NAMES[label.category].toLowerCase()}`, stamp);
+        feedLine(name, "", `${label.label} (${CATEGORY_NAMES[label.category]})`, stamp);
       }
     },
   });
@@ -196,7 +196,7 @@ $("send").addEventListener("click", async () => {
   if (!state.payload) return;
   const btn = $<HTMLButtonElement>("send");
   btn.disabled = true;
-  btn.textContent = "GEMINI IS WRITING…";
+  btn.textContent = "GEMINI IS WRITING...";
   $("send-error").hidden = true;
   try {
     await renderWrapped(await writeWrapped(state.payload));
@@ -290,7 +290,7 @@ function renderLedger(l: DeviceLedger) {
   row("Requests to the cloud", String(l.cloudCalls.length));
   for (const call of l.cloudCalls) {
     const h = document.createElement("p");
-    h.textContent = `${new Date(call.at).toLocaleString()} · ${call.purpose} · ${call.model}`;
+    h.textContent = `${call.purpose}, ${call.model}, ${new Date(call.at).toLocaleString()}`;
     const pre = document.createElement("pre");
     pre.textContent = call.sent;
     body.append(h, pre);

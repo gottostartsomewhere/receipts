@@ -14,7 +14,7 @@ Your order history is one of the most personal datasets you have: what you eat a
 
 | Job | Where it runs | Firebase AI Logic mode | Why |
 |---|---|---|---|
-| Understand every item ("Hyderabadi Chicken Dum Biryani" → *biryani · food*) | Gemini Nano, on device | `ONLY_ON_DEVICE` | Item names are private, there are hundreds of them, and on-device inference is free. If Nano is missing, Receipts falls back to local rules instead of the cloud, unless you explicitly opt in. |
+| Understand every item ("Hyderabadi Chicken Dum Biryani" becomes *biryani, food delivery*) | Gemini Nano, on device | `ONLY_ON_DEVICE` | Item names are private, there are hundreds of them, and on-device inference is free. If Nano is missing, Receipts falls back to local rules instead of the cloud, unless you explicitly opt in. |
 | Add it all up: totals, favourites, late-night orders, busiest month | Plain code, on device | none | Arithmetic, no model needed. |
 | Decide what may leave | On device | none | A fixed list of ~12 facts. Money is rounded. No item list, dates, merchants or addresses. You review it first. |
 | Write the Wrapped: persona, roast, card lines | Gemini in the cloud | `ONLY_IN_CLOUD` | Creative writing on a tiny anonymous summary is where a big model shines. |

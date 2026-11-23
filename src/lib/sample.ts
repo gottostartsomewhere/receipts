@@ -124,7 +124,7 @@ export function sampleOrders(id: PersonaId, year: number, untilMonth = 11): Orde
     orders.push({
       id: `food-${i}`,
       store: "sample",
-      merchant: `${pick(p.foodApps)} · ${r.name}`,
+      merchant: `${r.name} (${pick(p.foodApps)})`,
       date: day(),
       hour,
       total: money(between(r.price)),
