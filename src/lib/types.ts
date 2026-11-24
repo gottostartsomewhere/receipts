@@ -30,7 +30,7 @@ export const CATEGORY_NAMES: Record<Category, string> = {
   other: "Other",
 };
 
-export type StoreId = "amazon_in" | "amazon_com" | "swiggy" | "zomato" | "sample";
+export type StoreId = "amazon_in" | "amazon_com" | "swiggy" | "zomato" | "web" | "sample";
 
 export type Currency = "INR" | "USD";
 

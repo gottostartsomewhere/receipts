@@ -3,7 +3,7 @@ import { parseDishString, parseLooseDate, parseMoney, parseSqlTime, parseZomatoT
 import { closeTab, navigateTab, NotSignedIn, openBackgroundTab, runInTab } from "./tab";
 
 export interface StoreInfo {
-  id: Exclude<StoreId, "sample">;
+  id: Exclude<StoreId, "sample" | "web">;
   label: string;
   origins: string[];
 }

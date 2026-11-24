@@ -11,6 +11,8 @@ export interface CardMeta {
   index: number;
   total: number;
   footer: string;
+  /** Stamp text; private cards say they never left the laptop. */
+  stamp?: string;
 }
 
 const W = 1080;
@@ -151,29 +153,40 @@ export async function drawCard(input: CardSpec, meta: CardMeta): Promise<HTMLCan
   ctx.font = `600 34px ${FONT}`;
   ctx.fillText(spec.kicker, left, py + 340);
 
-  // Headline: largest size that fits in three lines.
-  ctx.fillStyle = INK;
-  let size = 150;
-  let lines: string[] = [];
-  for (; size >= 60; size -= 6) {
-    ctx.font = `700 ${size}px ${FONT}`;
-    lines = wrap(ctx, spec.headline, inner);
-    if (lines.length <= 3 && lines.every((l) => ctx.measureText(l).width <= inner)) break;
-  }
-  let y = py + 340 + size * 1.15;
-  for (const l of lines.slice(0, 3)) {
-    ctx.fillText(l, left, y);
-    y += size * 1.08;
-  }
-
-  ctx.font = `400 42px ${FONT}`;
-  y += 40;
-  for (const l of wrap(ctx, spec.line, inner).slice(0, 5)) {
-    ctx.fillText(l, left, y);
-    y += 58;
-  }
-
+  // Headline and line share the space above the stamp. Shrink both until everything fits,
+  // so the stamp never sits on top of text.
   const bottom = py + ph;
+  const kickerBaseline = py + 340;
+  const lastBaselineLimit = bottom - 520; // the stamp's top edge is at bottom - 500
+  ctx.fillStyle = INK;
+
+  // One layout function used both to test a size and to draw it, so they cannot disagree.
+  const layout = (size: number, lineSize: number) => {
+    ctx.font = `700 ${size}px ${FONT}`;
+    const head = wrap(ctx, spec.headline, inner);
+    const widthOk = head.length <= 3 && head.every((l) => ctx.measureText(l).width <= inner);
+    ctx.font = `400 ${lineSize}px ${FONT}`;
+    const body = wrap(ctx, spec.line, inner).slice(0, 5);
+    const headBaselines = head.slice(0, 3).map((_, i) => kickerBaseline + size * 1.15 + i * size * 1.08);
+    const lastHead = headBaselines[headBaselines.length - 1] ?? kickerBaseline;
+    const bodyBaselines = body.map((_, i) => lastHead + 40 + lineSize + i * lineSize * 1.38);
+    const last = bodyBaselines[bodyBaselines.length - 1] ?? lastHead;
+    return { head, body, headBaselines, bodyBaselines, fits: widthOk && last <= lastBaselineLimit };
+  };
+
+  let size = 150;
+  let lineSize = 42;
+  let plan = layout(size, lineSize);
+  while (!plan.fits && size > 54) {
+    size -= 6;
+    lineSize = size >= 96 ? 42 : 36;
+    plan = layout(size, lineSize);
+  }
+  ctx.font = `700 ${size}px ${FONT}`;
+  plan.head.slice(0, 3).forEach((l, i) => ctx.fillText(l, left, plan.headBaselines[i]));
+  ctx.font = `400 ${lineSize}px ${FONT}`;
+  plan.body.forEach((l, i) => ctx.fillText(l, left, plan.bodyBaselines[i]));
+
   dashed(ctx, left, bottom - 400, inner);
   ctx.font = `400 26px ${FONT}`;
   ctx.fillStyle = SOFT;
@@ -181,7 +194,9 @@ export async function drawCard(input: CardSpec, meta: CardMeta): Promise<HTMLCan
   barcode(ctx, left, bottom - 240, inner, 90, meta.index * 31 + meta.year);
   ctx.textAlign = "center";
   ctx.fillText(`${meta.index + 1} / ${meta.total}`, W / 2, bottom - 100);
-  stamp(ctx, "READ ON MY LAPTOP", px + pw - 260, bottom - 470);
+  ctx.font = `700 30px ${FONT}`;
+  const stampText = (meta.stamp ?? "READ ON MY LAPTOP").toUpperCase();
+  stamp(ctx, stampText, px + pw - 70 - ctx.measureText(stampText).width / 2 - 18, bottom - 470);
   return canvas;
 }
 

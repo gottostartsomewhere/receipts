@@ -1,9 +1,13 @@
+import { answerQuery, groundQuery, parseQueryLine, ruleQuery, type Query } from "./lib/ask";
 import { downloadCanvas, drawCard, type CardSpec } from "./lib/cards";
-import { firebaseConfigured, labelModel, nanoState, warmNano, type NanoState } from "./lib/firebase";
+import { askModel, firebaseConfigured, labelModel, nanoState, warmNano, type NanoState } from "./lib/firebase";
+import { privateCards, privateInsights } from "./lib/insights";
 import { labelItems, uniqueItemNames } from "./lib/labeler";
-import { getLedger, onLedgerChange, recordRead, type DeviceLedger } from "./lib/ledger";
+import { getLedger, onLedgerChange, recordOnDevice, recordRead, type DeviceLedger } from "./lib/ledger";
 import { sampleOrders, type PersonaId } from "./lib/sample";
 import { readStore, STORES, type StoreInfo } from "./lib/stores/readers";
+import { readPage } from "./lib/stores/anypage";
+import { getPages, onPagesChange, removePage, type PageGrab } from "./lib/stores/pages";
 import { NotSignedIn } from "./lib/stores/tab";
 import { countFacts, formatMoney, normalizeName, summarize, toCloudPayload, type CloudPayload } from "./lib/summary";
 import { CATEGORY_NAMES, type ItemLabel, type Order } from "./lib/types";
@@ -27,13 +31,47 @@ const state: { orders: Order[]; labels: Map<string, ItemLabel>; payload?: CloudP
 
 $("today").textContent = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
 
-// Pick stores, or leave them all unticked to use a sample year.
-document.querySelectorAll<HTMLInputElement>('input[name="store"]').forEach((el) =>
-  el.addEventListener("change", () => {
-    const any = [...document.querySelectorAll<HTMLInputElement>('input[name="store"]')].some((s) => s.checked);
-    $("start").textContent = any ? "READ MY ORDERS" : "PRINT A SAMPLE YEAR";
-  }),
-);
+// Pick stores or added pages, or leave them all unticked to use a sample year.
+function refreshStartLabel() {
+  const any = [...document.querySelectorAll<HTMLInputElement>('input[name="store"], input[name="page"]')].some((s) => s.checked);
+  $("start").textContent = any ? "READ MY ORDERS" : "PRINT A SAMPLE YEAR";
+}
+document.querySelectorAll<HTMLInputElement>('input[name="store"]').forEach((el) => el.addEventListener("change", refreshStartLabel));
+
+let pages: PageGrab[] = [];
+async function renderPages() {
+  pages = await getPages();
+  const list = $("pages-list");
+  list.replaceChildren();
+  for (const p of pages) {
+    const row = document.createElement("label");
+    row.className = "line check";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.name = "page";
+    box.value = p.url;
+    box.checked = true;
+    box.addEventListener("change", refreshStartLabel);
+    const name = document.createElement("span");
+    name.textContent = p.host;
+    const dots = document.createElement("span");
+    dots.className = "dots";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "tag-button";
+    remove.textContent = "remove";
+    remove.setAttribute("aria-label", `Remove ${p.host}`);
+    remove.addEventListener("click", (e) => {
+      e.preventDefault();
+      void removePage(p.url);
+    });
+    row.append(box, name, dots, remove);
+    list.append(row);
+  }
+  refreshStartLabel();
+}
+void renderPages();
+onPagesChange(() => void renderPages());
 
 let nano: NanoState = "unavailable";
 async function refreshNano() {
@@ -55,6 +93,7 @@ $("start").addEventListener("click", async () => {
   const persona = (document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value ?? "chennai") as PersonaId;
   const allowCloud = $<HTMLInputElement>("allow-cloud").checked;
   const chosen = STORES.filter((s) => document.querySelector<HTMLInputElement>(`input[name="store"][value="${s.id}"]`)?.checked);
+  const chosenPages = pages.filter((p) => [...document.querySelectorAll<HTMLInputElement>('input[name="page"]:checked')].some((b) => b.value === p.url));
   // Ask for access to only the chosen stores. This must be the first await, inside the click.
   if (chosen.length) {
     const granted = await chrome.permissions.request({ origins: chosen.flatMap((s) => s.origins) });
@@ -71,7 +110,8 @@ $("start").addEventListener("click", async () => {
       .initializeDeviceModel((p) => ($("nano-state").textContent = `DOWNLOADING ${Math.round(p * 100)}%`))
       .then(refreshNano);
   }
-  await run(chosen.length ? () => loadStores(chosen) : () => loadSample(persona), allowCloud);
+  const real = chosen.length > 0 || chosenPages.length > 0;
+  await run(real ? async () => [...(await loadStores(chosen)), ...(await loadPages(chosenPages))] : () => loadSample(persona), allowCloud);
 });
 
 // ---------- Reading + labelling ----------
@@ -150,12 +190,43 @@ async function loadStores(stores: StoreInfo[]): Promise<Order[]> {
   return all;
 }
 
+/** Nano reads the orders off each page the person added. Needs Nano: a whole page never goes to the cloud. */
+async function loadPages(chosen: PageGrab[]): Promise<Order[]> {
+  const all: Order[] = [];
+  for (const page of chosen) {
+    $("reading-title").textContent = `GEMINI NANO IS READING ${page.host}`;
+    if (nano !== "available" || !firebaseConfigured) {
+      feedLine(`${page.host}: needs Gemini Nano on this laptop`, "SKIPPED");
+      continue;
+    }
+    feedLine(`Reading ${page.host}`, "");
+    try {
+      const found = await readPage(
+        page,
+        YEAR,
+        (o) => {
+          all.push(o);
+          feedLine(`${o.merchant}: ${o.items[0] ?? ""}`, formatMoney(o.total, o.currency), undefined);
+          $("count-orders").textContent = String(Number($("count-orders").textContent) + 1);
+        },
+        state.abort?.signal,
+      );
+      feedLine(`${page.host}: ${found.length} orders checked against the page`, "DONE");
+    } catch (err) {
+      console.warn(`Receipts: could not read ${page.host}`, err);
+      feedLine(`${page.host}: could not read`, "SKIPPED");
+    }
+  }
+  return all;
+}
+
 async function run(load: () => Promise<Order[]>, allowCloud: boolean) {
   state.abort = new AbortController();
   $("feed").replaceChildren();
   $("count-orders").textContent = "0";
   $("count-items").textContent = "0";
   $("start-note").hidden = true;
+  $("ask").hidden = true;
   setProgress(0);
   show("screen-reading");
 
@@ -246,8 +317,84 @@ function review() {
     `These ${countFacts(payload)} facts are all Gemini in the cloud would see: no item list, no dates, no addresses, no exact amounts.`;
   $("send").textContent = firebaseConfigured ? `SEND THESE ${countFacts(payload)} FACTS TO GEMINI` : "CLOUD NOT SET UP YET";
   $<HTMLButtonElement>("send").disabled = !firebaseConfigured;
+  setUpAsk(summary.topLabels[0]?.label, summary.busiestMonth.month, summary.lateNightShare !== undefined);
   show("screen-review");
 }
+
+// ---------- Ask your receipts ----------
+
+function setUpAsk(favourite: string | undefined, busiestMonth: string, hasHours: boolean) {
+  $("answers").replaceChildren();
+  const chips = $("ask-chips");
+  chips.replaceChildren();
+  const examples = [
+    favourite ? `How much did I spend on ${favourite}?` : "",
+    `What was my biggest order in ${busiestMonth}?`,
+    hasHours ? "How many orders after 10pm?" : "How many orders in October?",
+  ].filter(Boolean);
+  for (const ex of examples) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex;
+    b.addEventListener("click", () => void ask(ex));
+    chips.append(b);
+  }
+  $("ask").hidden = false;
+}
+
+async function ask(question: string) {
+  const q = question.trim();
+  if (!q) return;
+  const li = document.createElement("li");
+  const qEl = document.createElement("div");
+  qEl.className = "q";
+  qEl.textContent = q;
+  const aEl = document.createElement("div");
+  aEl.className = "a";
+  aEl.textContent = nano === "available" ? "Gemini Nano is reading the question..." : "Reading the question...";
+  const dEl = document.createElement("div");
+  dEl.className = "d";
+  li.append(qEl, aEl, dEl);
+  $("answers").prepend(li);
+
+  const known = [...new Set([...state.labels.values()].map((l) => l.label))].slice(0, 60);
+  let query: Query | null = null;
+  let how: { kind: string; text: string } = { kind: "rules", text: "LOCAL RULES" };
+  if (firebaseConfigured && nano === "available") {
+    try {
+      const res = await askModel().generateContent(`Known items: ${known.join(", ")}.\nQuestion: ${q}`);
+      const parsed = parseQueryLine(res.response.text());
+      query = parsed && groundQuery(parsed, q);
+      await recordOnDevice();
+      if (query) how = { kind: "device", text: "ON DEVICE" };
+    } catch (err) {
+      console.warn("Receipts: Nano could not read the question, using local rules", err);
+    }
+  }
+  query ??= ruleQuery(q, known);
+  const answer = answerQuery(query, state.orders, state.labels, YEAR);
+
+  aEl.replaceChildren();
+  const l = document.createElement("span");
+  l.textContent = answer.label;
+  const dots = document.createElement("span");
+  dots.className = "dots";
+  const v = document.createElement("span");
+  v.textContent = answer.value;
+  aEl.append(l, dots, v);
+  dEl.textContent = `${answer.detail} `;
+  const s = document.createElement("span");
+  s.className = `stamp ${how.kind}`;
+  s.textContent = how.text;
+  dEl.append(s);
+}
+
+$("ask-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const input = $<HTMLInputElement>("ask-input");
+  void ask(input.value);
+  input.value = "";
+});
 
 $("send").addEventListener("click", async () => {
   if (!state.payload) return;
@@ -292,14 +439,20 @@ async function renderWrapped(w: Wrapped) {
   small.textContent = left;
   closing.append(big, small);
 
-  const specs: CardSpec[] = [...w.cards, { kicker: w.persona, headline: stayed, line: left }];
+  // Cloud-written cards first, then cards that only ever existed on this laptop, then the closer.
+  const insights = privateInsights(state.orders, state.labels, p.year);
+  const specs: (CardSpec & { stamp?: string })[] = [
+    ...w.cards,
+    ...privateCards(insights, p.currency).map((c) => ({ ...c, stamp: "Never left my laptop" })),
+    { kicker: w.persona, headline: stayed, line: left },
+  ];
   const footer = "Read on my laptop by Gemini Nano. Only a few rounded totals ever reached the cloud.";
   const cards = $("cards");
   cards.replaceChildren();
   drawn = [];
   show("screen-wrapped");
   for (let i = 0; i < specs.length; i++) {
-    const canvas = await drawCard(specs[i], { year: p.year, index: i, total: specs.length, footer });
+    const canvas = await drawCard(specs[i], { year: p.year, index: i, total: specs.length, footer, stamp: specs[i].stamp });
     const name = `receipts-${p.year}-${i + 1}.png`;
     drawn.push({ canvas, name });
     const fig = document.createElement("figure");
@@ -324,7 +477,10 @@ $("save-all").addEventListener("click", async () => {
   }
 });
 
-$("again").addEventListener("click", () => show("screen-start"));
+$("again").addEventListener("click", () => {
+  $("ask").hidden = true;
+  show("screen-start");
+});
 
 // ---------- What left this device ----------
 
@@ -356,5 +512,11 @@ function renderLedger(l: DeviceLedger) {
 void getLedger().then(renderLedger);
 onLedgerChange(renderLedger);
 
-// Keep the key normaliser in the bundle's public surface for the console during the demo.
-Object.assign(globalThis, { receiptsDebug: { normalizeName } });
+// Console hooks for testing on a dev machine. They run the same on-device code paths as the UI.
+Object.assign(globalThis, {
+  receiptsDebug: {
+    normalizeName,
+    readPageText: (text: string, host = "example.com") =>
+      readPage({ url: `https://${host}/orders`, host, title: host, text, at: Date.now() }, YEAR, (o) => console.log("Receipts debug order", o)),
+  },
+});

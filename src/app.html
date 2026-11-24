@@ -34,6 +34,12 @@
           </fieldset>
 
           <fieldset class="lines">
+            <legend>ANY OTHER SHOP</legend>
+            <div id="pages-list"></div>
+            <p class="small-note" id="pages-hint">Open any shop's order history page (Flipkart, Myntra, DoorDash, Walmart, anything) and click the Receipts icon there. Gemini Nano reads the orders off that page, on this laptop.</p>
+          </fieldset>
+
+          <fieldset class="lines">
             <legend>OR TRY A SAMPLE YEAR</legend>
             <label class="line check"><input type="radio" name="sample" value="chennai" checked /><span>Sample: Chennai</span><span class="dots"></span><span>₹</span></label>
             <label class="line check"><input type="radio" name="sample" value="seattle" /><span>Sample: Seattle</span><span class="dots"></span><span>$</span></label>
@@ -78,6 +84,19 @@
           <div class="closing" id="closing"></div>
           <button class="print" id="save-all" type="button">SAVE ALL CARDS</button>
           <button class="ghost" id="again" type="button">Start over</button>
+        </section>
+
+        <section id="ask" class="ask" hidden aria-labelledby="ask-title">
+          <hr class="rule" />
+          <p class="section-title" id="ask-title">ASK YOUR RECEIPTS</p>
+          <p class="small-note">Answered on this laptop. Gemini Nano reads the question; the number is counted from your orders, so it is exact.</p>
+          <form id="ask-form" class="ask-form">
+            <label for="ask-input" class="visually-hidden">Your question</label>
+            <input id="ask-input" type="text" autocomplete="off" maxlength="160" placeholder="How much did I spend on biryani in March?" />
+            <button class="ask-go" type="submit">ASK</button>
+          </form>
+          <div class="chips" id="ask-chips"></div>
+          <ol class="answers" id="answers"></ol>
         </section>
 
         <footer class="ledger">

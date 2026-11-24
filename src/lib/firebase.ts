@@ -123,6 +123,70 @@ export function labelModel(allowCloud: boolean): GenerativeModel {
   });
 }
 
+// ---------- Read any store (private: the whole page) ----------
+
+const ORDER_LINE =
+  "(20\\d\\d-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01]))\\|\\d{1,7}(\\.\\d{1,2})?\\|(delivered|cancelled|returned)\\|[^|\\n]{0,40}\\|[^|\\n]{1,200}";
+const ORDER_LINES = new RegExp(`^(${ORDER_LINE}\\n?){0,15}$`);
+
+/** A whole order page is about as private as it gets, so this is ONLY_ON_DEVICE with no fallback. */
+export function extractModel(year: number): GenerativeModel {
+  const { ai } = getFirebase();
+  const system =
+    "You read text copied from an online shop's order history page. Write one line per order: date|total|status|merchant|items. " +
+    `date is YYYY-MM-DD; if the page leaves out the year, it is ${year}. ` +
+    "total is the amount paid for that order as a plain number, no currency sign, no commas. " +
+    "status is delivered, cancelled or returned. " +
+    "merchant is the restaurant or seller only if the page shows it apart from the item name; a brand is part of the item, so then leave merchant empty. " +
+    "items are the item names separated by ; and shortened to at most six words each. " +
+    "Only write orders that are on the page. If there are none, write nothing.";
+  return getGenerativeModel(ai, {
+    mode: InferenceMode.ONLY_ON_DEVICE,
+    onDeviceParams: {
+      createOptions: {
+        expectedInputs: [{ type: "text", languages: ["en"] }],
+        expectedOutputs: [{ type: "text", languages: ["en"] }],
+        initialPrompts: [{ role: "system", content: [{ type: "text", value: system }] }],
+      },
+      promptOptions: { responseConstraint: ORDER_LINES },
+    },
+  });
+}
+
+// ---------- Ask your receipts (private: the question, answered on the laptop) ----------
+
+export const ASK_SYSTEM_PROMPT =
+  "Turn a question about the person's online orders into one line: metric|item|category|merchant|month|time. " +
+  "metric is spend, orders, times or biggest. item is 1 to 3 lowercase words like biryani or running shoes, or - for none. " +
+  `category is one of ${Object.keys(SHORT_CATEGORIES).join(", ")}, or -. merchant is a shop or restaurant name, or -. ` +
+  "month is 1 to 12, or -. time is night for late night or after 10pm, otherwise -. " +
+  "Examples: how much did I spend on biryani in March -> spend|biryani|-|-|3|- . " +
+  "how many times did I order from Thalappakatti -> orders|-|-|thalappakatti|-|- . " +
+  "how many orders after 10pm -> orders|-|-|-|-|night . " +
+  "what did food cost me after 10pm -> spend|-|food|-|-|night . " +
+  "what was my biggest order in May -> biggest|-|-|-|5|- . " +
+  "A time like 10pm is never a month.";
+
+const ASK_LINE = new RegExp(
+  `^(spend|orders|times|biggest)\\|([a-z0-9 '-]{1,30}|-)\\|(${SHORT}|-)\\|([a-z0-9 '&.-]{1,40}|-)\\|(1[0-2]|[1-9]|-)\\|(night|-)$`,
+);
+
+/** The question can be personal ("what did I order at 2am"), so it is answered ONLY_ON_DEVICE. */
+export function askModel(): GenerativeModel {
+  const { ai } = getFirebase();
+  return getGenerativeModel(ai, {
+    mode: InferenceMode.ONLY_ON_DEVICE,
+    onDeviceParams: {
+      createOptions: {
+        expectedInputs: [{ type: "text", languages: ["en"] }],
+        expectedOutputs: [{ type: "text", languages: ["en"] }],
+        initialPrompts: [{ role: "system", content: [{ type: "text", value: ASK_SYSTEM_PROMPT }] }],
+      },
+      promptOptions: { responseConstraint: ASK_LINE },
+    },
+  });
+}
+
 // ---------- Wrapped (only the rounded summary facts) ----------
 
 export const WRAP_SYSTEM_PROMPT =
