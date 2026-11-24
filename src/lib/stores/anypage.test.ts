@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chunkText, detectCurrency, groundOrder, parseOrderLine } from "./anypage";
+import { chunkText, detectCurrency, groundOrder, groundYear, parseOrderLine } from "./anypage";
 import { looksLikeOrders } from "./pages";
 
 const page = `My Orders
@@ -38,6 +38,25 @@ describe("reading any order page", () => {
     expect(groundOrder({ ...base, date: "2026-03-14", total: 1299, items: ["Sony Headphones"] }, page)).toBeNull();
     const partly = groundOrder({ ...base, date: "2026-04-02", total: 2499, items: ["Puma Running Shoes", "Gold Watch"] }, page);
     expect(partly?.items).toEqual(["Puma Running Shoes"]);
+  });
+
+  it("keeps an older year only when the page prints that full date", () => {
+    const flipkart = "ORDER TIME\nLast 30 days\n2024\n2023\n₹392\nDelivered on Feb 16\nYour item has been delivered";
+    expect(groundYear("2024-02-16", flipkart, 2026)).toBe("2026-02-16");
+    expect(groundYear("2025-12-30", "Delivered on Dec 30, 2025", 2026)).toBe("2025-12-30");
+    expect(groundYear("2025-12-30", "Delivered 30 December 2025", 2026)).toBe("2025-12-30");
+    expect(groundYear("2026-03-01", "Delivered on Mar 1", 2026)).toBe("2026-03-01");
+  });
+
+  it("rejects a date that is nowhere on the page", () => {
+    expect(groundYear("2026-03-01", "Watch any movie @ Rs 89", 2026)).toBeNull();
+  });
+
+  it("uses a year the page prints, even when the model assumed this year", () => {
+    const blinkit = "Arrived in 6 minutes\n₹1,103\n08 Oct, 4:02 pm\nArrived in 9 minutes\n₹147\n19 Apr 2025, 7:10 pm";
+    expect(groundYear("2026-04-19", blinkit, 2026)).toBe("2025-04-19");
+    expect(groundYear("2026-10-08", blinkit, 2026)).toBe("2026-10-08");
+    expect(groundYear("2026-03-05", "Ordered 2025-03-05", 2026)).toBe("2025-03-05");
   });
 
   it("chunks long pages at line breaks", () => {

@@ -108,6 +108,11 @@ fieldset.lines legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
 .check input:disabled + span { color: var(--ink-faint); }
 .status { margin: 6px 0 14px; font-weight: 600; }
 .small-note { font-size: 11px; color: var(--ink-soft); margin: 6px 0 0; }
+.shops-region { margin: 8px 0 2px; font-size: 11px; letter-spacing: 0.1em; color: var(--ink-soft); }
+.shops-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; }
+.shop { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 13px; }
+.shop .tag { margin-left: auto; color: var(--ink-faint); font-size: 10px; }
+@media (max-width: 380px) { .shops-grid { grid-template-columns: 1fr; } }
 .tag-button { background: none; border: 0; padding: 0; color: var(--ink-faint); font-size: 12px; text-decoration: underline; }
 .tag-button:hover { color: var(--ink); }
 

@@ -20,8 +20,8 @@ describe("private insights", () => {
     expect(placeName("Thalappakatti (Swiggy)")).toBe("Thalappakatti");
     const ins = privateInsights(
       [
-        order({ merchant: "Thalappakatti (Swiggy)" }),
-        order({ merchant: "Thalappakatti (Zomato)" }),
+        order({ merchant: "Thalappakatti (Swiggy)", knownCategory: "food_delivery" }),
+        order({ merchant: "Thalappakatti (Zomato)", knownCategory: "food_delivery" }),
         order({ merchant: "Amazon" }),
       ],
       new Map(),

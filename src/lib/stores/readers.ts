@@ -1,5 +1,8 @@
 import type { Order, StoreId } from "../types";
 import { parseDishString, parseLooseDate, parseMoney, parseSqlTime, parseZomatoTime, statusFrom } from "./parse";
+import { readPage } from "./anypage";
+import { loadOrdersPage, type CatalogShop } from "./catalog";
+import type { PageGrab } from "./pages";
 import { closeTab, navigateTab, NotSignedIn, openBackgroundTab, runInTab } from "./tab";
 
 export interface StoreInfo {
@@ -12,7 +15,8 @@ export const STORES: StoreInfo[] = [
   { id: "amazon_in", label: "Amazon.in", origins: ["https://www.amazon.in/*"] },
   { id: "amazon_com", label: "Amazon.com", origins: ["https://www.amazon.com/*"] },
   { id: "swiggy", label: "Swiggy", origins: ["https://www.swiggy.com/*"] },
-  { id: "zomato", label: "Zomato", origins: ["https://www.zomato.com/*"] },
+  // Zomato's website became app-only in 2026 (no sign-in, no order history), so it is not
+  // offered. The reader below stays for the day the web history returns.
 ];
 
 export type ReadProgress = (ordersSoFar: Order[]) => void;
@@ -244,6 +248,37 @@ async function readZomato(_store: StoreInfo, year: number, onProgress: ReadProgr
   } finally {
     await closeTab(tabId);
   }
+}
+
+/**
+ * Catalog shops: open the order page with the person's sign-in, load the year, close the tab,
+ * then Gemini Nano reads the text on the laptop (see anypage.ts). Throws NotSignedIn if the
+ * shop shows a login page.
+ */
+export async function readCatalogShop(
+  shop: CatalogShop,
+  year: number,
+  onOrder: (o: Order) => void,
+  signal?: AbortSignal,
+): Promise<Order[]> {
+  const tabId = await openBackgroundTab(shop.ordersUrl);
+  let grab: Awaited<ReturnType<typeof loadOrdersPage>>;
+  let url = shop.ordersUrl;
+  try {
+    grab = await runInTab(tabId, loadOrdersPage, [year, 30_000]);
+    url = (await chrome.tabs.get(tabId)).url ?? url;
+  } finally {
+    await closeTab(tabId);
+  }
+  if (!grab || grab.status === "signin") throw new NotSignedIn(shop.label);
+  if (grab.status === "empty") return [];
+  const page: PageGrab = { url, host: new URL(url).host.replace(/^www\./, ""), title: grab.title, text: grab.text, at: Date.now() };
+  return readPage(page, year, onOrder, signal, {
+    shopName: shop.label,
+    merchantFromPage: shop.merchantFromPage,
+    category: shop.category,
+    genericItem: shop.genericItem,
+  });
 }
 
 export function readStore(store: StoreInfo, year: number, onProgress: ReadProgress): Promise<Order[]> {

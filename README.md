@@ -10,7 +10,7 @@ The cloud only ever sees about a dozen rounded facts, and you see every one of t
 
 ## What it does
 
-- **Reads your shops.** Amazon.in, Amazon.com, Swiggy and Zomato are read in a background tab using your existing sign-in. Delivery addresses are never read.
+- **Reads your shops.** Amazon.in, Amazon.com and Swiggy have dedicated readers. Flipkart, Myntra, Ajio, Tata CLiQ, Blinkit, JioMart, BookMyShow and Uber in India, and Walmart, Target, DoorDash, Uber Eats, Instacart, eBay and Etsy in the US are read by one generic reader: the order page opens in a background tab with your existing sign-in, the year is loaded, and Gemini Nano reads it on your laptop. Shops nobody has checked against a real account yet are marked beta.
 - **Reads any other shop.** Open any order-history page (Flipkart, Myntra, DoorDash, Walmart...) and click the Receipts icon. Gemini Nano pulls the orders off that page on your laptop, and every order it reports is checked against the page text, so it cannot invent a purchase.
 - **Understands what you bought.** Nano turns "Dindigul Chicken Dum Biryani" and "Lazeez Bhuna Murgh Biryani" into *biryani*, so the year adds up the way you think about it.
 - **Writes your Wrapped.** Gemini in the cloud gets the rounded facts and writes the persona, roast and card lines.

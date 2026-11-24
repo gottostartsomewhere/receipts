@@ -15,7 +15,7 @@ export interface PrivateInsights {
 
 /** "Hotel Junior Kuppanna (Swiggy)" -> "Hotel Junior Kuppanna", so the same place adds up across apps. */
 export function placeName(merchant: string): string {
-  return merchant.replace(/\s*\((Swiggy|Zomato|DoorDash|Uber Eats|Instamart)\)\s*$/i, "").trim();
+  return merchant.replace(/\s*\((Swiggy|Zomato|DoorDash|Uber Eats|Instamart|Instacart|Blinkit)\)\s*$/i, "").trim();
 }
 
 const DAY_MS = 86_400_000;
@@ -25,8 +25,9 @@ export function privateInsights(orders: Order[], labels: Map<string, ItemLabel>,
 
   const byPlace = new Map<string, number>();
   for (const o of delivered) {
+    // Regulars are places you order food from; "Amazon" or "Flipkart" as a regular says nothing.
+    if (o.knownCategory !== "food_delivery") continue;
     const name = placeName(o.merchant);
-    if (/^amazon$/i.test(name)) continue; // "Amazon" as a regular says nothing.
     byPlace.set(name, (byPlace.get(name) ?? 0) + 1);
   }
   const regulars = [...byPlace.entries()]

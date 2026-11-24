@@ -5,7 +5,8 @@ import { privateCards, privateInsights } from "./lib/insights";
 import { labelItems, uniqueItemNames } from "./lib/labeler";
 import { getLedger, onLedgerChange, recordOnDevice, recordRead, type DeviceLedger } from "./lib/ledger";
 import { sampleOrders, type PersonaId } from "./lib/sample";
-import { readStore, STORES, type StoreInfo } from "./lib/stores/readers";
+import { CATALOG, type CatalogShop } from "./lib/stores/catalog";
+import { readCatalogShop, readStore, STORES, type StoreInfo } from "./lib/stores/readers";
 import { readPage } from "./lib/stores/anypage";
 import { getPages, onPagesChange, removePage, type PageGrab } from "./lib/stores/pages";
 import { NotSignedIn } from "./lib/stores/tab";
@@ -31,12 +32,61 @@ const state: { orders: Order[]; labels: Map<string, ItemLabel>; payload?: CloudP
 
 $("today").textContent = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
 
-// Pick stores or added pages, or leave them all unticked to use a sample year.
+// Pick shops or added pages, or leave them all unticked to use a sample year.
 function refreshStartLabel() {
-  const any = [...document.querySelectorAll<HTMLInputElement>('input[name="store"], input[name="page"]')].some((s) => s.checked);
+  const any = [...document.querySelectorAll<HTMLInputElement>('input[name="shop"], input[name="page"]')].some((s) => s.checked);
   $("start").textContent = any ? "READ MY ORDERS" : "PRINT A SAMPLE YEAR";
 }
-document.querySelectorAll<HTMLInputElement>('input[name="store"]').forEach((el) => el.addEventListener("change", refreshStartLabel));
+
+interface ShopOption {
+  id: string;
+  label: string;
+  region: "IN" | "US";
+  beta: boolean;
+  origins: string[];
+}
+
+const REGION_OF: Record<string, "IN" | "US"> = { amazon_in: "IN", swiggy: "IN", amazon_com: "US" };
+const VERIFIED = new Set(["amazon_in", "swiggy"]);
+const SHOPS: ShopOption[] = [
+  ...STORES.map((s) => ({ id: s.id, label: s.label, region: REGION_OF[s.id] ?? "IN", beta: !VERIFIED.has(s.id), origins: s.origins })),
+  ...CATALOG.map((c) => ({ id: c.id, label: c.label, region: c.region, beta: c.beta, origins: c.origins })),
+];
+
+function renderShops() {
+  const home: "IN" | "US" = Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Calcutta" || Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Kolkata" ? "IN" : "US";
+  const regions: ("IN" | "US")[] = home === "IN" ? ["IN", "US"] : ["US", "IN"];
+  const box = $("shops");
+  box.replaceChildren();
+  for (const region of regions) {
+    const h = document.createElement("p");
+    h.className = "shops-region";
+    h.textContent = region === "IN" ? "India" : "United States";
+    const grid = document.createElement("div");
+    grid.className = "shops-grid";
+    for (const shop of SHOPS.filter((s) => s.region === region)) {
+      const row = document.createElement("label");
+      row.className = "shop check";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.name = "shop";
+      input.value = shop.id;
+      input.addEventListener("change", refreshStartLabel);
+      const name = document.createElement("span");
+      name.textContent = shop.label;
+      row.append(input, name);
+      if (shop.beta) {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = "beta";
+        row.append(tag);
+      }
+      grid.append(row);
+    }
+    box.append(h, grid);
+  }
+}
+renderShops();
 
 let pages: PageGrab[] = [];
 async function renderPages() {
@@ -92,11 +142,14 @@ void refreshNano().then(() => {
 $("start").addEventListener("click", async () => {
   const persona = (document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value ?? "chennai") as PersonaId;
   const allowCloud = $<HTMLInputElement>("allow-cloud").checked;
-  const chosen = STORES.filter((s) => document.querySelector<HTMLInputElement>(`input[name="store"][value="${s.id}"]`)?.checked);
+  const ticked = new Set([...document.querySelectorAll<HTMLInputElement>('input[name="shop"]:checked')].map((b) => b.value));
+  const chosen = STORES.filter((s) => ticked.has(s.id));
+  const chosenShops = CATALOG.filter((c) => ticked.has(c.id));
   const chosenPages = pages.filter((p) => [...document.querySelectorAll<HTMLInputElement>('input[name="page"]:checked')].some((b) => b.value === p.url));
-  // Ask for access to only the chosen stores. This must be the first await, inside the click.
-  if (chosen.length) {
-    const granted = await chrome.permissions.request({ origins: chosen.flatMap((s) => s.origins) });
+  // Ask for access to only the chosen shops. This must be the first await, inside the click.
+  const origins = [...new Set([...chosen, ...chosenShops].flatMap((s) => s.origins))];
+  if (origins.length) {
+    const granted = await chrome.permissions.request({ origins });
     if (!granted) {
       $("start-note").textContent = "Receipts needs permission to open those stores' order pages. Nothing was read.";
       $("start-note").hidden = false;
@@ -110,8 +163,13 @@ $("start").addEventListener("click", async () => {
       .initializeDeviceModel((p) => ($("nano-state").textContent = `DOWNLOADING ${Math.round(p * 100)}%`))
       .then(refreshNano);
   }
-  const real = chosen.length > 0 || chosenPages.length > 0;
-  await run(real ? async () => [...(await loadStores(chosen)), ...(await loadPages(chosenPages))] : () => loadSample(persona), allowCloud);
+  const real = chosen.length > 0 || chosenShops.length > 0 || chosenPages.length > 0;
+  await run(
+    real
+      ? async () => [...(await loadStores(chosen)), ...(await loadCatalog(chosenShops)), ...(await loadPages(chosenPages))]
+      : () => loadSample(persona),
+    allowCloud,
+  );
 });
 
 // ---------- Reading + labelling ----------
@@ -186,6 +244,36 @@ async function loadStores(stores: StoreInfo[]): Promise<Order[]> {
     }
     $("count-orders").textContent = String(all.length);
     setProgress((n + 1) / stores.length);
+  }
+  return all;
+}
+
+/** Catalog shops: background tab with the person's sign-in, then Nano reads the page on the laptop. */
+async function loadCatalog(shops: CatalogShop[]): Promise<Order[]> {
+  const all: Order[] = [];
+  for (const shop of shops) {
+    $("reading-title").textContent = `READING ${shop.label}`;
+    if (nano !== "available" || !firebaseConfigured) {
+      feedLine(`${shop.label}: needs Gemini Nano on this laptop`, "SKIPPED");
+      continue;
+    }
+    feedLine(`Opening ${shop.label} in a background tab`, "");
+    try {
+      const found = await readCatalogShop(
+        shop,
+        YEAR,
+        (o) => {
+          all.push(o);
+          feedLine(`${o.merchant}: ${o.items[0]?.name ?? ""}`, formatMoney(o.total, o.currency));
+          $("count-orders").textContent = String(Number($("count-orders").textContent) + 1);
+        },
+        state.abort?.signal,
+      );
+      feedLine(found.length ? `${shop.label}: ${found.length} orders, each checked against the page` : `${shop.label}: no ${YEAR} orders found`, "DONE");
+    } catch (err) {
+      console.warn(`Receipts: could not read ${shop.label}`, err);
+      feedLine(err instanceof NotSignedIn ? `${shop.label}: not signed in` : `${shop.label}: could not read`, "SKIPPED");
+    }
   }
   return all;
 }

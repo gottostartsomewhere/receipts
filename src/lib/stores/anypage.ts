@@ -4,7 +4,7 @@
 
 import { extractModel } from "../firebase";
 import { recordOnDevice } from "../ledger";
-import type { Currency, Order } from "../types";
+import type { Category, Currency, Order } from "../types";
 import type { PageGrab } from "./pages";
 
 export interface ExtractedOrder {
@@ -53,6 +53,33 @@ export function parseOrderLine(line: string): ExtractedOrder | null {
 
 const squash = (s: string) => s.toLowerCase().replace(/[\s,]/g, "");
 
+const MONTH_NAMES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+/**
+ * Picks the year from the page, not from the model. Shops print "Delivered on Feb 16" for this
+ * year and "19 Apr 2025" for older orders, while filter sidebars list bare years like "2024".
+ * If every place the page shows this day and month carries the same year, that year wins;
+ * if the page shows it without a year, it is the current year.
+ */
+export function groundYear(date: string, pageText: string, year: number): string | null {
+  const [, m, d] = date.split("-");
+  const mon = MONTH_NAMES[Number(m) - 1];
+  const day = String(Number(d));
+  const t = pageText.toLowerCase();
+  if (new RegExp(`\\b(20\\d\\d)-${m}-${d}\\b`).test(t)) {
+    const iso = new RegExp(`\\b(20\\d\\d)-${m}-${d}\\b`).exec(t)!;
+    return `${iso[1]}-${m}-${d}`;
+  }
+  const re = new RegExp(`(?:\\b0?${day}(?:st|nd|rd|th)?\\s+${mon}[a-z]*\\.?|\\b${mon}[a-z]*\\.?\\s+0?${day}(?:st|nd|rd|th)?\\b)(?:,?\\s+(20\\d\\d))?`, "g");
+  const years: (string | undefined)[] = [];
+  for (const match of t.matchAll(re)) years.push(match[1]);
+  // A date that is nowhere on the page was made up (promo banners have prices but no dates).
+  if (years.length === 0) return null;
+  const explicit = years.filter(Boolean) as string[];
+  if (explicit.length === years.length && new Set(explicit).size === 1) return `${explicit[0]}-${m}-${d}`;
+  return `${year}-${m}-${d}`;
+}
+
 /**
  * Keeps an order only if its total appears on the page and at least one item does too.
  * Items that do not appear are dropped.
@@ -74,6 +101,11 @@ export function groundOrder(o: ExtractedOrder, pageText: string): ExtractedOrder
   return { ...o, items, merchant };
 }
 
+/** For shops that list no item names: keep the order only if its total is on the page. */
+export function groundTotal(o: ExtractedOrder, pageText: string): ExtractedOrder | null {
+  return squash(pageText).includes(String(Math.floor(o.total))) ? o : null;
+}
+
 export function detectCurrency(text: string): Currency {
   const rupees = (text.match(/₹|\bRs\.?|\bINR\b/g) ?? []).length;
   const dollars = (text.match(/\$|\bUSD\b/g) ?? []).length;
@@ -85,7 +117,27 @@ function siteName(host: string): string {
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 
-export async function readPage(page: PageGrab, year: number, onOrder: (o: Order) => void, signal?: AbortSignal): Promise<Order[]> {
+export interface ReadPageOptions {
+  /** Shop name to use for every order (catalog shops). */
+  shopName?: string;
+  /** Keep the restaurant Nano reads off the page (food apps). */
+  merchantFromPage?: boolean;
+  /** Every order from this shop is in this category. */
+  category?: Category;
+  /**
+   * For shops whose order list shows no item names (Blinkit shows price, date and "arrived in
+   * 6 minutes"): use this as the item and check only the total against the page.
+   */
+  genericItem?: string;
+}
+
+export async function readPage(
+  page: PageGrab,
+  year: number,
+  onOrder: (o: Order) => void,
+  signal?: AbortSignal,
+  opts: ReadPageOptions = {},
+): Promise<Order[]> {
   const currency = detectCurrency(page.text);
   const model = extractModel(year);
   const seen = new Set<string>();
@@ -96,8 +148,11 @@ export async function readPage(page: PageGrab, year: number, onOrder: (o: Order)
     let buffer = "";
     const take = (line: string) => {
       if (!line.trim()) return;
-      const parsed = parseOrderLine(line);
-      const o = parsed && groundOrder(parsed, chunk);
+      const raw = parseOrderLine(line);
+      const parsed = raw && opts.genericItem ? { ...raw, merchant: "", items: [opts.genericItem] } : raw;
+      const grounded = parsed && (opts.genericItem ? groundTotal(parsed, chunk) : groundOrder(parsed, chunk));
+      const date = grounded && groundYear(grounded.date, chunk, year);
+      const o = grounded && date ? { ...grounded, date } : null;
       if (!o || !o.date.startsWith(String(year))) {
         console.debug("Receipts: dropped a line Nano wrote", { line, parsed: Boolean(parsed), grounded: Boolean(o) });
         return;
@@ -112,10 +167,13 @@ export async function readPage(page: PageGrab, year: number, onOrder: (o: Order)
       const key = `${o.date}|${o.total}|${items[0]}`;
       if (seen.has(key)) return;
       seen.add(key);
+      const shop = opts.shopName ?? siteName(page.host);
+      const useMerchant = opts.shopName ? opts.merchantFromPage : true;
       const order: Order = {
         id: `web-${page.host}-${key}`,
         store: "web",
-        merchant: merchant || siteName(page.host),
+        merchant: useMerchant && merchant ? (opts.shopName ? `${merchant} (${opts.shopName})` : merchant) : shop,
+        knownCategory: opts.category,
         date: o.date,
         total: o.total,
         currency,
