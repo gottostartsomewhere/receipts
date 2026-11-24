@@ -32,11 +32,22 @@ const state: { orders: Order[]; labels: Map<string, ItemLabel>; payload?: CloudP
 
 $("today").textContent = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
 
-// Pick shops or added pages, or leave them all unticked to use a sample year.
+// The same page runs as the extension and as the hosted web demo. Reading real shops needs the
+// extension (background tabs, the person's sign-ins); the web version offers the demo store
+// and sample years.
+const IN_EXTENSION = Boolean((globalThis as { chrome?: { runtime?: { id?: string } } }).chrome?.runtime?.id);
+if (!IN_EXTENSION) {
+  document.querySelectorAll<HTMLElement>(".extension-only").forEach((el) => (el.hidden = true));
+  $("web-note").hidden = false;
+}
+
+// Pick shops or added pages, or leave them all unticked to use the demo store or a sample year.
 function refreshStartLabel() {
   const any = [...document.querySelectorAll<HTMLInputElement>('input[name="shop"], input[name="page"]')].some((s) => s.checked);
-  $("start").textContent = any ? "READ MY ORDERS" : "PRINT A SAMPLE YEAR";
+  const choice = document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value;
+  $("start").textContent = any ? "READ MY ORDERS" : choice === "demo" ? "READ THE DEMO STORE" : "PRINT A SAMPLE YEAR";
 }
+document.querySelectorAll<HTMLInputElement>('input[name="sample"]').forEach((el) => el.addEventListener("change", refreshStartLabel));
 
 interface ShopOption {
   id: string;
@@ -140,7 +151,8 @@ void refreshNano().then(() => {
 });
 
 $("start").addEventListener("click", async () => {
-  const persona = (document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value ?? "chennai") as PersonaId;
+  const pick = document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value ?? "demo";
+  const persona = (pick === "seattle" ? "seattle" : "chennai") as PersonaId;
   const allowCloud = $<HTMLInputElement>("allow-cloud").checked;
   const ticked = new Set([...document.querySelectorAll<HTMLInputElement>('input[name="shop"]:checked')].map((b) => b.value));
   const chosen = STORES.filter((s) => ticked.has(s.id));
@@ -167,7 +179,9 @@ $("start").addEventListener("click", async () => {
   await run(
     real
       ? async () => [...(await loadStores(chosen)), ...(await loadCatalog(chosenShops)), ...(await loadPages(chosenPages))]
-      : () => loadSample(persona),
+      : pick === "demo"
+        ? () => loadDemo()
+        : () => loadSample(persona),
     allowCloud,
   );
 });
@@ -246,6 +260,53 @@ async function loadStores(stores: StoreInfo[]): Promise<Order[]> {
     setProgress((n + 1) / stores.length);
   }
   return all;
+}
+
+/** Renders a page in an off-screen frame and returns its visible text, like a shop tab would. */
+function renderedText(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const frame = document.createElement("iframe");
+    frame.src = src;
+    frame.setAttribute("aria-hidden", "true");
+    frame.tabIndex = -1;
+    frame.style.cssText = "position:fixed;left:-10000px;top:0;width:900px;height:1200px;visibility:hidden;";
+    frame.addEventListener("load", () => {
+      const text = frame.contentDocument?.querySelector<HTMLElement>("main")?.innerText ?? frame.contentDocument?.body.innerText ?? "";
+      frame.remove();
+      text ? resolve(text) : reject(new Error("The demo store page was empty"));
+    });
+    frame.addEventListener("error", () => reject(new Error("Could not open the demo store page")));
+    document.body.append(frame);
+  });
+}
+
+/**
+ * The demo store: a made-up order page read exactly like a real shop. Because its orders are
+ * not anyone's data, a machine without Nano may let the cloud read it instead.
+ */
+async function loadDemo(): Promise<Order[]> {
+  $("reading-title").textContent = nano === "available" ? "GEMINI NANO IS READING THE DEMO STORE" : "READING THE DEMO STORE";
+  if (!firebaseConfigured) {
+    feedLine("Demo store: Firebase is not set up in this build", "SKIPPED");
+    return [];
+  }
+  feedLine(nano === "available" ? "Opening the demo store page" : "No Nano here: the cloud reads the made-up demo page", "");
+  const text = await renderedText("./demo-shop.html");
+  const page: PageGrab = { url: new URL("./demo-shop.html", location.href).href, host: "halfway.market (demo)", title: "Halfway Market", text, at: Date.now() };
+  const orders: Order[] = [];
+  const found = await readPage(
+    page,
+    YEAR,
+    (o) => {
+      orders.push(o);
+      feedLine(`${o.items[0]?.name ?? o.merchant}${o.status === "delivered" ? "" : ` (${o.status})`}`, formatMoney(o.total, o.currency));
+      $("count-orders").textContent = String(orders.length);
+    },
+    state.abort?.signal,
+    { shopName: "Halfway Market", demoPage: true },
+  );
+  feedLine(`Demo store: ${found.length} orders, each checked against the page`, "DONE");
+  return found;
 }
 
 /** Catalog shops: background tab with the person's sign-in, then Nano reads the page on the laptop. */
@@ -374,11 +435,13 @@ const FIELD_NAMES: Partial<Record<keyof CloudPayload, string>> = {
   biggest_order_rounded: "Biggest order (rounded)",
   biggest_order_item: "Biggest order was",
   late_night_percent: "Orders after 10pm",
+  fees_rounded: "Fees on top (rounded)",
+  fee_share_percent: "Fees as a share of spend",
 };
 
 function displayValue(key: keyof CloudPayload, value: unknown, p: CloudPayload): string {
-  if (key === "total_spend_rounded" || key === "biggest_order_rounded") return formatMoney(Number(value), p.currency);
-  if (key === "top_category_percent" || key === "late_night_percent") return `${value}%`;
+  if (key === "total_spend_rounded" || key === "biggest_order_rounded" || key === "fees_rounded") return formatMoney(Number(value), p.currency);
+  if (key === "top_category_percent" || key === "late_night_percent" || key === "fee_share_percent") return `${value}%`;
   return String(value);
 }
 
@@ -405,17 +468,18 @@ function review() {
     `These ${countFacts(payload)} facts are all Gemini in the cloud would see: no item list, no dates, no addresses, no exact amounts.`;
   $("send").textContent = firebaseConfigured ? `SEND THESE ${countFacts(payload)} FACTS TO GEMINI` : "CLOUD NOT SET UP YET";
   $<HTMLButtonElement>("send").disabled = !firebaseConfigured;
-  setUpAsk(summary.topLabels[0]?.label, summary.busiestMonth.month, summary.lateNightShare !== undefined);
+  setUpAsk(summary.topLabels[0]?.label, summary.busiestMonth.month, summary.lateNightShare !== undefined, summary.totalFees > 0);
   show("screen-review");
 }
 
 // ---------- Ask your receipts ----------
 
-function setUpAsk(favourite: string | undefined, busiestMonth: string, hasHours: boolean) {
+function setUpAsk(favourite: string | undefined, busiestMonth: string, hasHours: boolean, hasFees: boolean) {
   $("answers").replaceChildren();
   const chips = $("ask-chips");
   chips.replaceChildren();
   const examples = [
+    hasFees ? "How much did I pay in fees?" : "",
     favourite ? `How much did I spend on ${favourite}?` : "",
     `What was my biggest order in ${busiestMonth}?`,
     hasHours ? "How many orders after 10pm?" : "How many orders in October?",

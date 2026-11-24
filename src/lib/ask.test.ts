@@ -49,6 +49,23 @@ describe("grounding Nano's query in the question", () => {
   });
 });
 
+describe("fees", () => {
+  const withFees: Order[] = [
+    order({ merchant: "Thalappakatti (Swiggy)", date: "2026-03-02", total: 400, knownCategory: "food_delivery", fees: [{ label: "platform fee", amount: 14.99 }, { label: "packing charges", amount: 30 }] }),
+    order({ merchant: "A2B (Swiggy)", date: "2026-04-10", total: 300, knownCategory: "food_delivery", fees: [{ label: "platform fee", amount: 14.99 }] }),
+    order({ merchant: "Amazon", date: "2026-04-11", total: 900 }),
+  ];
+  it("adds up fees, all of them or one kind", () => {
+    expect(answerQuery({ metric: "fees" }, withFees, labels, 2026)).toMatchObject({ value: "₹60" });
+    expect(answerQuery({ metric: "fees", item: "platform fee" }, withFees, labels, 2026)).toMatchObject({ value: "₹30" });
+    expect(answerQuery({ metric: "fees", month: 4 }, withFees, labels, 2026).value).toBe("₹15");
+  });
+  it("reads fee questions without a model", () => {
+    expect(ruleQuery("How much did I pay in platform fees?", [])).toEqual({ metric: "fees", item: "platform" });
+    expect(parseQueryLine("fees|platform fee|-|-|-|-")).toEqual({ metric: "fees", item: "platform fee" });
+  });
+});
+
 describe("local rules fallback", () => {
   it("understands simple questions without a model", () => {
     expect(ruleQuery("How much did I spend on biryani in March?", ["biryani", "naan"])).toEqual({ metric: "spend", item: "biryani", month: 3 });

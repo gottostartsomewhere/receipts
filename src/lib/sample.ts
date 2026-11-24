@@ -1,4 +1,4 @@
-import type { Category, Currency, Order } from "./types";
+import type { Category, Currency, Fee, Order } from "./types";
 
 /** Seeded RNG so the demo year is identical on every machine (mulberry32). */
 function rng(seed: number) {
@@ -99,6 +99,27 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+/**
+ * Fees in the shape the real apps charge them: a flat platform fee on every Indian food order,
+ * packing charges at some restaurants, delivery and late-night fees sometimes; a percentage
+ * service fee and a small-order fee on US apps.
+ */
+function foodFees(currency: Currency, app: string, food: number, hour: number, rand: () => number): Fee[] {
+  const fees: Fee[] = [];
+  if (currency === "INR") {
+    fees.push({ label: "platform fee", amount: app === "Swiggy" ? 14.99 : 12.5 });
+    if (rand() < 0.6) fees.push({ label: "packing charges", amount: 10 + Math.round(rand() * 30) });
+    if (rand() < 0.35) fees.push({ label: "delivery fee", amount: 25 + Math.round(rand() * 20) });
+    if ((hour >= 23 || hour < 3) && rand() < 0.5) fees.push({ label: "late night fee", amount: 15 + Math.round(rand() * 10) });
+    if (rand() < 0.08) fees.push({ label: "surge fee", amount: 20 + Math.round(rand() * 10) });
+  } else {
+    fees.push({ label: "service fee", amount: Math.min(15, Math.max(3, food * 0.15)) });
+    if (rand() < 0.55) fees.push({ label: "delivery fee", amount: 0.99 + Math.round(rand() * 4) });
+    if (food < 15) fees.push({ label: "small order fee", amount: 2 });
+  }
+  return fees;
+}
+
 /** A believable year of orders up to `untilMonth` (1-12) in `year`. */
 export function sampleOrders(id: PersonaId, year: number, untilMonth = 11): Order[] {
   const p = PERSONAS[id].persona;
@@ -121,16 +142,20 @@ export function sampleOrders(id: PersonaId, year: number, untilMonth = 11): Orde
     const hour = late ? pick([22, 23, 23, 0, 0, 1, 2]) : pick([12, 13, 13, 14, 19, 20, 20, 21]);
     const dishCount = 1 + Math.floor(rand() * 2);
     const items = Array.from({ length: dishCount }, () => ({ name: pick(r.dishes), qty: 1 + Math.floor(rand() * 2) }));
+    const app = pick(p.foodApps);
+    const food = between(r.price);
+    const fees = foodFees(p.currency, app, food, hour, rand).map((f) => ({ ...f, amount: money(f.amount) }));
     orders.push({
       id: `food-${i}`,
       store: "sample",
-      merchant: `${r.name} (${pick(p.foodApps)})`,
+      merchant: `${r.name} (${app})`,
       date: day(),
       hour,
-      total: money(between(r.price)),
+      total: money(food + fees.reduce((n, f) => n + f.amount, 0)),
       currency: p.currency,
       status: rand() < 0.03 ? "cancelled" : "delivered",
       items,
+      fees,
       knownCategory: "food_delivery" as Category,
     });
   }

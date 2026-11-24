@@ -22,24 +22,28 @@
         </header>
 
         <section id="screen-start" class="screen">
-          <p class="note">Receipts reads your order history <strong>on this laptop</strong>. The cloud only gets a handful of rounded totals, and you see every one of them before anything is sent.</p>
+          <p class="note">Receipts reads your order history <strong>on this laptop</strong>: what you bought, what you spent, and the platform, delivery and packing fees you paid on top. The cloud only gets a handful of rounded totals, and you see every one of them before anything is sent.</p>
 
-          <fieldset class="lines">
+          <p class="small-note web-only" id="web-note" hidden>This is the web version. Reading your own shops needs the Receipts Chrome extension; here you can try the demo store or a sample year, with the same Gemini Nano and the same privacy rules.</p>
+
+          <fieldset class="lines extension-only" id="shops-fieldset">
             <legend>WHERE TO LOOK</legend>
             <div id="shops" class="shops"></div>
             <p class="small-note">Each shop opens in a background tab using your existing sign-in, then closes. Gemini Nano reads the orders on this laptop. BETA means nobody has checked that shop against a real account yet.</p>
           </fieldset>
 
-          <fieldset class="lines">
+          <fieldset class="lines extension-only" id="pages-fieldset">
             <legend>ANY OTHER SHOP</legend>
             <div id="pages-list"></div>
             <p class="small-note" id="pages-hint">Open any shop's order history page (Flipkart, Myntra, DoorDash, Walmart, anything) and click the Receipts icon there. Gemini Nano reads the orders off that page, on this laptop.</p>
           </fieldset>
 
           <fieldset class="lines">
-            <legend>OR TRY A SAMPLE YEAR</legend>
-            <label class="line check"><input type="radio" name="sample" value="chennai" checked /><span>Sample: Chennai</span><span class="dots"></span><span>₹</span></label>
-            <label class="line check"><input type="radio" name="sample" value="seattle" /><span>Sample: Seattle</span><span class="dots"></span><span>$</span></label>
+            <legend>NO ACCOUNTS? TRY ONE OF THESE</legend>
+            <label class="line check"><input type="radio" name="sample" value="demo" checked /><span>Demo store</span><span class="dots"></span><span class="tag">Nano reads a real page</span></label>
+            <label class="line check"><input type="radio" name="sample" value="chennai" /><span>Sample year: Chennai</span><span class="dots"></span><span>₹</span></label>
+            <label class="line check"><input type="radio" name="sample" value="seattle" /><span>Sample year: Seattle</span><span class="dots"></span><span>$</span></label>
+            <p class="small-note">The demo store is a made-up shop page, <a href="./demo-shop.html" target="_blank" rel="noopener">open it here</a>. Receipts reads it the same way it reads a real one and checks every order against the page.</p>
           </fieldset>
 
           <div class="line status"><span>GEMINI NANO</span><span class="dots"></span><span id="nano-state">checking</span></div>
@@ -49,7 +53,7 @@
           </label>
 
           <p class="error" id="start-note" hidden></p>
-          <button class="print" id="start" type="button">PRINT A SAMPLE YEAR</button>
+          <button class="print" id="start" type="button">READ THE DEMO STORE</button>
         </section>
 
         <section id="screen-reading" class="screen" hidden>

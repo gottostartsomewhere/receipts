@@ -41,6 +41,31 @@ export interface OrderItem {
   qty: number;
 }
 
+/** A charge on top of what was bought: platform, delivery, packing, convenience, handling... */
+export interface Fee {
+  label: string;
+  amount: number;
+}
+
+const FEE_SYNONYMS: [RegExp, string][] = [
+  [/platform/, "platform fee"],
+  [/convenience|booking fee|internet handling/, "convenience fee"],
+  [/delivery|shipping/, "delivery fee"],
+  [/pack/, "packing charges"],
+  [/handling/, "handling fee"],
+  [/small (cart|order|basket)|cart fee|minimum order/, "small order fee"],
+  [/service/, "service fee"],
+  [/late ?night|night fee/, "late night fee"],
+  [/surge|rain|busy|peak/, "surge fee"],
+  [/cancel/, "cancellation fee"],
+];
+
+/** Different apps name the same fee differently; this puts them in one bucket. */
+export function normalizeFeeLabel(raw: string): string {
+  const s = raw.toLowerCase().trim();
+  return FEE_SYNONYMS.find(([re]) => re.test(s))?.[1] ?? s.replace(/\s+/g, " ").slice(0, 30);
+}
+
 export interface Order {
   id: string;
   store: StoreId;
@@ -54,6 +79,8 @@ export interface Order {
   currency: Currency;
   status: OrderStatus;
   items: OrderItem[];
+  /** Charges on top of the items, when the shop shows them. Included in `total`. */
+  fees?: Fee[];
   /** Food delivery apps are food by definition; other stores need Nano to label items. */
   knownCategory?: Category;
 }

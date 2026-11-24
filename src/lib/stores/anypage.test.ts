@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { chunkText, detectCurrency, groundOrder, groundYear, parseOrderLine } from "./anypage";
+import { assignFees, chunkText, detectCurrency, groundFees, groundOrder, groundYear, parseOrderLine } from "./anypage";
 import { looksLikeOrders } from "./pages";
+import type { Order } from "../types";
 
 const page = `My Orders
 Boat Airdopes 141 Bluetooth Earbuds
@@ -13,20 +14,63 @@ Ship to: Kevin, Chennai`;
 
 describe("reading any order page", () => {
   it("parses Nano's order lines", () => {
-    expect(parseOrderLine("2026-03-14|1299|delivered|Flipkart|Boat Airdopes 141; Charging cable")).toEqual({
+    expect(parseOrderLine("2026-03-14|1299|delivered|-|Flipkart|Boat Airdopes 141; Charging cable")).toEqual({
       date: "2026-03-14",
       total: 1299,
       status: "delivered",
+      fees: [],
       merchant: "Flipkart",
       items: ["Boat Airdopes 141", "Charging cable"],
     });
-    expect(parseOrderLine("2026-05-18|1799|cancelled||Redmi Power Bank")?.status).toBe("cancelled");
-    expect(parseOrderLine("2026-05-18|1799|returned||Redmi Power Bank")?.status).toBe("refunded");
-    expect(parseOrderLine("2026-13-01|1299|delivered|x|y")).toBeNull();
-    expect(parseOrderLine("2026-03-14|free|delivered|x|y")).toBeNull();
+    expect(parseOrderLine("2026-05-18|1799|cancelled|-||Redmi Power Bank")?.status).toBe("cancelled");
+    expect(parseOrderLine("2026-05-18|1799|returned|-||Redmi Power Bank")?.status).toBe("refunded");
+    expect(parseOrderLine("2026-13-01|1299|delivered|-|x|y")).toBeNull();
+    expect(parseOrderLine("2026-03-14|free|delivered|-|x|y")).toBeNull();
   });
 
-  const base = { status: "delivered" as const, merchant: "" };
+  it("parses fees and keeps only the ones printed on the page", () => {
+    const line = parseOrderLine("2026-10-30|24.17|delivered|delivery fee 2.99; service fee 1.75; rain fee 9|Halfway Market|Pad Thai");
+    expect(line?.fees).toEqual([
+      { label: "delivery fee", amount: 2.99 },
+      { label: "service fee", amount: 1.75 },
+      { label: "rain fee", amount: 9 },
+    ]);
+    const shop = "Pad Thai, large\nDelivery fee $2.99\nService fee $1.75\nTotal $24.17";
+    expect(groundFees(line!.fees, shop)).toEqual([
+      { label: "delivery fee", amount: 2.99 },
+      { label: "service fee", amount: 1.75 },
+    ]);
+    expect(groundFees([{ label: "packaging charges", amount: 30 }], "Packaging charges ₹30")).toEqual([{ label: "packing charges", amount: 30 }]);
+    expect(groundFees([{ label: "convenience fees", amount: 80.24 }], "Convenience fees ₹80.24")).toEqual([{ label: "convenience fee", amount: 80.24 }]);
+  });
+
+  it("only gives a fee to the order whose part of the page prints it", () => {
+    const shop = [
+      "Order placed November 14, 2026", "Total $86.40", "Hydro Flask Bottle",
+      "Order placed October 30, 2026", "Total $24.17", "Pad Thai, large", "Delivery fee $2.99", "Service fee $3.18",
+      "Order placed March 27, 2026", "Total $21.06", "Pad Thai, large", "Delivery fee $0.99", "Service fee $2.57",
+    ].join("\n");
+    const make = (total: number, name: string): Order => ({
+      id: name + total, store: "web", merchant: "Halfway Market", date: "2026-01-01", total, currency: "USD", status: "delivered",
+      items: [{ name, qty: 1 }], fees: [],
+    });
+    const bottle = make(86.4, "Hydro Flask Bottle");
+    const oct = make(24.17, "Pad Thai, large");
+    const mar = make(21.06, "Pad Thai, large");
+    assignFees(
+      [
+        { order: bottle, fees: [{ label: "delivery fee", amount: 2.99 }] }, // Nano copied a fee onto the bottle
+        { order: oct, fees: [{ label: "delivery fee", amount: 2.99 }, { label: "service fee", amount: 3.18 }] },
+        { order: mar, fees: [{ label: "delivery fee", amount: 0.99 }, { label: "service fee", amount: 2.57 }] },
+      ],
+      shop,
+    );
+    expect(bottle.fees).toEqual([]);
+    expect(oct.fees!.map((f) => f.amount)).toEqual([2.99, 3.18]);
+    expect(mar.fees!.map((f) => f.amount)).toEqual([0.99, 2.57]);
+  });
+
+  const base = { status: "delivered" as const, merchant: "", fees: [] };
 
   it("keeps orders whose total and items are really on the page", () => {
     const ok = groundOrder({ ...base, date: "2026-03-14", total: 1299, items: ["Boat Airdopes 141"] }, page);

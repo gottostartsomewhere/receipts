@@ -15,6 +15,15 @@ export interface YearSummary {
   biggestOrder: { total: number; label: string };
   cancelled: number;
   storesUsed: number;
+  /** Charges on top of what was bought, from shops that show them. */
+  totalFees: number;
+  feesByLabel: { label: string; amount: number }[];
+  feesByShop: { shop: string; amount: number }[];
+}
+
+/** "Thalappakatti (Swiggy)" -> "Swiggy"; "Amazon" -> "Amazon". */
+export function shopOf(merchant: string): string {
+  return /\(([^)]+)\)\s*$/.exec(merchant)?.[1] ?? merchant;
 }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -41,9 +50,19 @@ export function summarize(orders: Order[], labels: Map<string, ItemLabel>, year:
   let lateNightOrders = 0;
   let withHour = 0;
   let biggest: { total: number; label: string } = { total: 0, label: "" };
+  const feeLabels = new Map<string, number>();
+  const feeShops = new Map<string, number>();
+  let totalFees = 0;
 
   for (const order of delivered) {
     totalSpend += order.total;
+    for (const fee of order.fees ?? []) {
+      if (!(fee.amount > 0)) continue;
+      totalFees += fee.amount;
+      feeLabels.set(fee.label, (feeLabels.get(fee.label) ?? 0) + fee.amount);
+      const shop = shopOf(order.merchant);
+      feeShops.set(shop, (feeShops.get(shop) ?? 0) + fee.amount);
+    }
     const month = Number(order.date.slice(5, 7)) - 1;
     const m = monthStats.get(month) ?? { orders: 0, spend: 0 };
     m.orders += 1;
@@ -101,6 +120,9 @@ export function summarize(orders: Order[], labels: Map<string, ItemLabel>, year:
     biggestOrder: { total: Math.round(biggest.total), label: biggest.label },
     cancelled: inYear.filter((o) => o.status === "cancelled" || o.status === "refunded").length,
     storesUsed: new Set(delivered.map((o) => o.store)).size,
+    totalFees: Math.round(totalFees * 100) / 100,
+    feesByLabel: [...feeLabels.entries()].map(([label, amount]) => ({ label, amount: Math.round(amount * 100) / 100 })).sort((a, b) => b.amount - a.amount),
+    feesByShop: [...feeShops.entries()].map(([shop, amount]) => ({ shop, amount: Math.round(amount * 100) / 100 })).sort((a, b) => b.amount - a.amount),
   };
 }
 
@@ -121,10 +143,18 @@ export interface CloudPayload {
   biggest_order_rounded: number;
   biggest_order_item: string;
   late_night_percent?: number;
+  /** Only when some shop showed its fees. */
+  fees_rounded?: number;
+  fee_share_percent?: number;
 }
 
 function roundMoney(amount: number, currency: Currency): number {
   const step = currency === "INR" ? 100 : 10;
+  return Math.round(amount / step) * step;
+}
+
+function roundFees(amount: number, currency: Currency): number {
+  const step = currency === "INR" ? 10 : 1;
   return Math.round(amount / step) * step;
 }
 
@@ -145,6 +175,10 @@ export function toCloudPayload(s: YearSummary): CloudPayload {
     biggest_order_item: s.biggestOrder.label || "something",
   };
   if (s.lateNightShare !== undefined) payload.late_night_percent = Math.round(s.lateNightShare * 100);
+  if (s.totalFees > 0) {
+    payload.fees_rounded = roundFees(s.totalFees, s.currency);
+    payload.fee_share_percent = s.totalSpend > 0 ? Math.round((s.totalFees / s.totalSpend) * 1000) / 10 : 0;
+  }
   return payload;
 }
 
@@ -153,9 +187,12 @@ export function countFacts(payload: CloudPayload): number {
 }
 
 export function formatMoney(amount: number, currency: Currency): string {
+  // Dollar amounts keep their cents ($24.17); rupee amounts and rounded totals do not.
+  const cents = currency === "USD" && !Number.isInteger(amount) ? 2 : 0;
   return new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", {
     style: "currency",
     currency,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: cents,
+    maximumFractionDigits: cents,
   }).format(amount);
 }

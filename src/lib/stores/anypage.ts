@@ -2,17 +2,44 @@
 // laptop. Every order it reports is checked against the page text before it is kept, so the
 // model cannot add purchases that are not there.
 
-import { extractModel } from "../firebase";
-import { recordOnDevice } from "../ledger";
-import type { Category, Currency, Order } from "../types";
+import { CLOUD_LABEL_MODEL, extractModel } from "../firebase";
+import { recordCloud, recordOnDevice } from "../ledger";
+import { normalizeFeeLabel, type Category, type Currency, type Fee, type Order } from "../types";
 import type { PageGrab } from "./pages";
 
 export interface ExtractedOrder {
   date: string;
   total: number;
   status: "delivered" | "cancelled" | "refunded";
+  fees: Fee[];
   merchant: string;
   items: string[];
+}
+
+/** "delivery fee 2.99; service fee 1.75" -> fees, with the label as Nano wrote it. "-" -> none. */
+export function parseFees(text: string): Fee[] {
+  if (!text || text.trim() === "-") return [];
+  return text
+    .split(";")
+    .map((part) => /^\s*([a-z][a-z ]*?)\s+(\d{1,5}(?:\.\d{1,2})?)\s*$/i.exec(part))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => ({ label: m[1].toLowerCase().trim(), amount: Number(m[2]) }))
+    .filter((f) => f.amount > 0);
+}
+
+/**
+ * Keeps a fee only if its amount is on the page and the page uses its name, then files it
+ * under a common name ("packaging charges" and "packing charges" are one bucket).
+ */
+export function groundFees(fees: Fee[], pageText: string): Fee[] {
+  const flat = pageText.toLowerCase().replace(/,/g, "");
+  return fees
+    .filter((f) => {
+      const amountOnPage = flat.includes(f.amount.toFixed(2)) || flat.includes(String(f.amount));
+      const word = f.label.split(" ")[0];
+      return amountOnPage && flat.includes(word.slice(0, 4));
+    })
+    .map((f) => ({ label: normalizeFeeLabel(f.label), amount: f.amount }));
 }
 
 /** Splits page text at line breaks into pieces Nano can take in one go. */
@@ -32,11 +59,11 @@ export function chunkText(text: string, max = 3500): string[] {
   return chunks;
 }
 
-/** "2026-03-14|1299|delivered|Flipkart|Boat earbuds; Phone case" */
+/** "2026-03-14|1299|delivered|delivery fee 40|Flipkart|Boat earbuds; Phone case" */
 export function parseOrderLine(line: string): ExtractedOrder | null {
   const parts = line.split("|").map((p) => p.trim());
-  if (parts.length < 5) return null;
-  const [date, total, status, merchant, ...rest] = parts;
+  if (parts.length < 6) return null;
+  const [date, total, status, fees, merchant, ...rest] = parts;
   if (!/^20\d\d-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(date) || Number.isNaN(Date.parse(date))) return null;
   const amount = Number(total.replace(/,/g, ""));
   if (!Number.isFinite(amount) || amount <= 0) return null;
@@ -46,6 +73,7 @@ export function parseOrderLine(line: string): ExtractedOrder | null {
     date,
     total: amount,
     status: s.startsWith("cancel") ? "cancelled" : s.startsWith("return") ? "refunded" : "delivered",
+    fees: parseFees(fees),
     merchant: merchant || "",
     items,
   };
@@ -129,6 +157,8 @@ export interface ReadPageOptions {
    * 6 minutes"): use this as the item and check only the total against the page.
    */
   genericItem?: string;
+  /** The made-up demo store: the cloud may read it if this machine has no Nano. */
+  demoPage?: boolean;
 }
 
 export async function readPage(
@@ -139,13 +169,16 @@ export async function readPage(
   opts: ReadPageOptions = {},
 ): Promise<Order[]> {
   const currency = detectCurrency(page.text);
-  const model = extractModel(year);
+  const model = extractModel(year, opts.demoPage);
   const seen = new Set<string>();
   const orders: Order[] = [];
   for (const chunk of chunkText(page.text)) {
     if (signal?.aborted) break;
     const result = await model.generateContentStream(chunk, { signal });
     let buffer = "";
+    // Fees are attached once the whole chunk is read, so each fee can be checked against its
+    // own order's part of the page (see assignFees). Orders still print as they arrive.
+    const pending: { order: Order; fees: Fee[] }[] = [];
     const take = (line: string) => {
       if (!line.trim()) return;
       const raw = parseOrderLine(line);
@@ -179,11 +212,18 @@ export async function readPage(
         currency,
         status: o.status,
         items: items.map((name) => ({ name, qty: 1 })),
+        fees: [],
       };
       orders.push(order);
+      pending.push({ order, fees: o.fees });
       onOrder(order);
     };
+    let inCloud = false;
     for await (const part of result.stream) {
+      if (part.inferenceSource === "in_cloud" && !inCloud) {
+        inCloud = true;
+        await recordCloud({ purpose: "Read the demo store page (made-up orders, no Nano here)", model: CLOUD_LABEL_MODEL, sent: chunk });
+      }
       buffer += part.text();
       let nl: number;
       while ((nl = buffer.indexOf("\n")) >= 0) {
@@ -192,7 +232,32 @@ export async function readPage(
       }
     }
     take(buffer);
-    await recordOnDevice();
+    assignFees(pending, chunk);
+    if (!inCloud) await recordOnDevice();
   }
   return orders;
+}
+
+/**
+ * A fee only counts if it is printed inside its own order's part of the page: from where that
+ * order's first item appears to where the next order's first item appears. Orders are found in
+ * page order, so a repeated item ("Pad Thai" three times) is matched to the right occurrence.
+ */
+export function assignFees(pending: { order: Order; fees: Fee[] }[], chunk: string): void {
+  const lower = chunk.toLowerCase();
+  let cursor = 0;
+  const anchored = pending.map((p) => {
+    const name = (p.order.items[0]?.name ?? "").toLowerCase();
+    const probe = name.slice(0, Math.min(18, name.length));
+    let at = probe ? lower.indexOf(probe, cursor) : -1;
+    if (at < 0 && probe) at = lower.indexOf(probe);
+    if (at < 0) at = lower.indexOf(String(Math.floor(p.order.total)));
+    if (at >= 0) cursor = at + 1;
+    return { ...p, at };
+  });
+  const sorted = anchored.filter((a) => a.at >= 0).sort((a, b) => a.at - b.at);
+  sorted.forEach((a, i) => {
+    const end = i + 1 < sorted.length ? sorted[i + 1].at : chunk.length;
+    a.order.fees = groundFees(a.fees, chunk.slice(a.at, end));
+  });
 }

@@ -4,7 +4,7 @@
 import { formatMoney, normalizeName } from "./summary";
 import { CATEGORY_NAMES, type Category, type ItemLabel, type Order } from "./types";
 
-export type Metric = "spend" | "orders" | "times" | "biggest";
+export type Metric = "spend" | "orders" | "times" | "biggest" | "fees";
 
 export interface Query {
   metric: Metric;
@@ -37,7 +37,7 @@ export function parseQueryLine(line: string): Query | null {
   const parts = line.trim().split("|").map((p) => p.trim().toLowerCase());
   if (parts.length < 6) return null;
   const [metric, item, cat, merchant, month, time] = parts;
-  if (!["spend", "orders", "times", "biggest"].includes(metric)) return null;
+  if (!["spend", "orders", "times", "biggest", "fees"].includes(metric)) return null;
   const q: Query = { metric: metric as Metric };
   if (item && item !== "-") q.item = item;
   if (cat && cat !== "-" && ASK_SHORT_CATEGORIES[cat]) q.category = ASK_SHORT_CATEGORIES[cat];
@@ -67,6 +67,14 @@ export function groundQuery(query: Query, question: string): Query {
 /** A plain keyword reader, used when Nano is missing or its line does not parse. */
 export function ruleQuery(question: string, knownItems: string[]): Query {
   const q = question.toLowerCase();
+  const feeWord = /\b(platform|delivery|packing|packaging|convenience|handling|service|small order|small cart|late night|surge|rain)\b/.exec(q)?.[1];
+  if (/\bfees?\b|\bcharges?\b/.test(q)) {
+    const query: Query = { metric: "fees" };
+    if (feeWord) query.item = feeWord;
+    const month = MONTHS.findIndex((m) => new RegExp(`\\b(${m}|${m.slice(0, 3)})\\b`).test(q));
+    if (month >= 0) query.month = month + 1;
+    return query;
+  }
   const query: Query = {
     metric: /how much|spend|spent|cost/.test(q)
       ? "spend"
@@ -117,6 +125,27 @@ export function answerQuery(query: Query, orders: Order[], labels: Map<string, I
     if (query.category && category !== query.category) return false;
     return true;
   };
+
+  if (query.metric === "fees") {
+    const kind = query.item?.toLowerCase().split(" ")[0].slice(0, 4);
+    let fees = 0;
+    let withFees = 0;
+    for (const o of pool) {
+      const hit = (o.fees ?? []).filter((f) => !kind || f.label.includes(kind));
+      if (hit.length === 0) continue;
+      withFees += 1;
+      fees += hit.reduce((n, f) => n + f.amount, 0);
+    }
+    const what = query.item ? `${query.item} fees` : "fees";
+    const parts = [what];
+    if (query.merchant) parts.push(`at ${query.merchant}`);
+    if (query.month) parts.push(`in ${MONTHS[query.month - 1]}`);
+    return {
+      label: parts.join(" "),
+      value: formatMoney(Math.round(fees), currency),
+      detail: withFees ? `on ${withFees} order${withFees === 1 ? "" : "s"}, on top of what you bought` : "no fees found on these orders",
+    };
+  }
 
   let spend = 0;
   let times = 0;

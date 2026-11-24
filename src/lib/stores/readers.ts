@@ -75,6 +75,7 @@ interface SwiggyRow {
   restaurant: string;
   status: string;
   items: { name: string; qty: number }[];
+  fees: { label: string; amount: number }[];
 }
 
 /** Pages through Swiggy's order history API from inside swiggy.com. Takes only these fields. */
@@ -103,6 +104,14 @@ async function swiggyOrders(year: number): Promise<{ signedIn: boolean; rows: Sw
         restaurant: String(o.restaurant_name ?? o.restaurant?.name ?? "Swiggy"),
         status: String(o.order_status ?? o.status ?? ""),
         items: (o.order_items ?? []).map((it: any) => ({ name: String(it.name ?? ""), qty: Number(it.quantity ?? 1) || 1 })),
+        // Swiggy's "convenience fee" is the platform fee shown in the app (with its GST).
+        // GST on the food is a tax, and the tip is a choice, so neither counts as a fee.
+        fees: [
+          { label: "platform fee", amount: Number(o.convenience_fees_with_tax ?? (Number(o.convenience_fees ?? 0) + Number(o.platform_fee_tax ?? 0))) },
+          { label: "delivery fee", amount: Number(o.discounted_total_delivery_fee ?? o.charges?.["Total Delivery Fees"] ?? 0) },
+          { label: "packing charges", amount: Number(o.charges?.["Packing Charges"] ?? o.restaurant_packing_charges ?? 0) },
+          { label: "cancellation fee", amount: Number(o.charges?.["Cancellation Fee"] ?? 0) },
+        ].filter((f) => Number.isFinite(f.amount) && f.amount > 0),
       });
     }
     if (reachedOlder) break;
@@ -212,6 +221,7 @@ async function readSwiggy(store: StoreInfo, year: number, onProgress: ReadProgre
         currency: "INR",
         status: statusFrom(r.status),
         items: r.items.filter((i) => i.name),
+        fees: r.fees,
         knownCategory: "food_delivery",
       });
     }

@@ -2,7 +2,7 @@
 // real restaurants and dates because none of this is ever sent anywhere.
 
 import type { CardSpec } from "./cards";
-import { formatMoney, normalizeName } from "./summary";
+import { formatMoney, normalizeName, shopOf } from "./summary";
 import type { Currency, ItemLabel, Order } from "./types";
 
 export interface PrivateInsights {
@@ -11,6 +11,7 @@ export interface PrivateInsights {
   longestStreak?: { days: number; from: string; to: string };
   repeatBuys: { label: string; times: number }[];
   lateNightFavourite?: { label: string; times: number };
+  fees?: { total: number; share: number; byLabel: { label: string; amount: number }[]; topShop?: { shop: string; amount: number } };
 }
 
 /** "Hotel Junior Kuppanna (Swiggy)" -> "Hotel Junior Kuppanna", so the same place adds up across apps. */
@@ -79,7 +80,31 @@ export function privateInsights(orders: Order[], labels: Map<string, ItemLabel>,
     .slice(0, 3);
   const night = [...nightFood.entries()].sort((a, b) => b[1] - a[1])[0];
 
+  const feeLabels = new Map<string, number>();
+  const feeShops = new Map<string, number>();
+  let feeTotal = 0;
+  let spend = 0;
+  for (const o of delivered) {
+    spend += o.total;
+    for (const f of o.fees ?? []) {
+      feeTotal += f.amount;
+      feeLabels.set(f.label, (feeLabels.get(f.label) ?? 0) + f.amount);
+      const shop = shopOf(o.merchant);
+      feeShops.set(shop, (feeShops.get(shop) ?? 0) + f.amount);
+    }
+  }
+  const fees =
+    feeTotal > 0
+      ? {
+          total: Math.round(feeTotal),
+          share: spend > 0 ? feeTotal / spend : 0,
+          byLabel: [...feeLabels.entries()].map(([label, amount]) => ({ label, amount: Math.round(amount) })).sort((a, b) => b.amount - a.amount),
+          topShop: [...feeShops.entries()].map(([shop, amount]) => ({ shop, amount: Math.round(amount) })).sort((a, b) => b.amount - a.amount)[0],
+        }
+      : undefined;
+
   return {
+    fees,
     regulars,
     priciestDay,
     longestStreak: longestStreak && longestStreak.days >= 3 ? longestStreak : undefined,
@@ -95,6 +120,16 @@ function shortDate(iso: string): string {
 /** Cards built only from private insights. Text is written here, on the laptop, not by the cloud. */
 export function privateCards(ins: PrivateInsights, currency: Currency): CardSpec[] {
   const cards: CardSpec[] = [];
+  if (ins.fees) {
+    const parts = ins.fees.byLabel.slice(0, 3).map((f) => `${f.label} ${formatMoney(f.amount, currency)}`);
+    cards.push({
+      kicker: "Fees on top",
+      headline: formatMoney(ins.fees.total, currency),
+      line:
+        `${parts.join(", ")}.` +
+        (ins.fees.topShop ? ` Most of it went to ${ins.fees.topShop.shop}.` : ""),
+    });
+  }
   const [first, ...rest] = ins.regulars;
   if (first && first.orders >= 3) {
     cards.push({

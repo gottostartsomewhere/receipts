@@ -8,6 +8,12 @@ The cloud only ever sees about a dozen rounded facts, and you see every one of t
 
 > 241 orders stayed on my laptop. 12 facts left it.
 
+## Why it matters: the fees you never see added up
+
+Platform fees, delivery fees, packing charges, convenience fees, handling fees, small-order fees. Each one is small and shown late; together they are real money. India's consumer regulator named this "drip pricing" a banned dark pattern in 2023 and in 2026 fined nine platforms, including Zepto and BookMyShow. A LocalCircles survey found 68% of food-delivery app users have hit hidden charges. The US FTC now requires the full price up front for tickets and hotels.
+
+Regulators are acting, but nobody can see their own total. Receipts adds it up: every fee, per kind and per app, read from your own order history on your own laptop. It would rather miss a fee than invent one: a fee only counts if it is printed inside that order's part of the page.
+
 ## What it does
 
 - **Reads your shops.** Amazon.in, Amazon.com and Swiggy have dedicated readers. Flipkart, Myntra, Ajio, Tata CLiQ, Blinkit, JioMart, BookMyShow and Uber in India, and Walmart, Target, DoorDash, Uber Eats, Instacart, eBay and Etsy in the US are read by one generic reader: the order page opens in a background tab with your existing sign-in, the year is loaded, and Gemini Nano reads it on your laptop. Shops nobody has checked against a real account yet are marked beta.
@@ -51,7 +57,11 @@ npm run build
 
 Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `dist` folder. Click the Receipts icon.
 
-No accounts handy? Pick **Sample: Chennai** or **Sample: Seattle** for a believable year of orders.
+### Trying it without your own accounts
+
+- **Demo store** (selected by default): a made-up shop page bundled with the extension, with fees, a cancelled order, a returned order, an order from last year and a promo banner. Press **Read the demo store** and watch Gemini Nano read it, check every order and fee against the page, and leave out what does not belong. If your Chrome has no Nano, the cloud reads this page instead, because nothing on it is anyone's data; real order pages are never sent.
+- **Sample years**: Chennai (₹) or Seattle ($), a full year of orders with realistic platform, delivery, packing and service fees.
+- Then try **Ask your receipts**: "How much did I pay in fees?"
 
 ## Tests
 

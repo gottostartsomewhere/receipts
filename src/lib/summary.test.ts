@@ -75,6 +75,8 @@ describe("toCloudPayload (the privacy boundary)", () => {
         "currency",
         "favourite_item",
         "favourite_item_count",
+        "fee_share_percent",
+        "fees_rounded",
         "late_night_percent",
         "orders",
         "top_category",
@@ -83,7 +85,15 @@ describe("toCloudPayload (the privacy boundary)", () => {
         "year",
       ].sort(),
     );
-    expect(countFacts(payload)).toBe(12);
+    expect(countFacts(payload)).toBe(14);
+  });
+
+  it("sends fees only as a rounded total and a share, never per order or per shop", () => {
+    expect(payload.fees_rounded! % 10).toBe(0);
+    expect(json).not.toMatch(/platform fee|packing|Swiggy|Zomato/i);
+    const noFees = toCloudPayload(summarize(orders.map((o) => ({ ...o, fees: undefined })), new Map(), 2026));
+    expect(noFees.fees_rounded).toBeUndefined();
+    expect(countFacts(noFees)).toBe(12);
   });
 
   it("uses dollar rounding for USD", () => {
