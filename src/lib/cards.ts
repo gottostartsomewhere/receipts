@@ -17,7 +17,7 @@ export interface CardMeta {
 
 const W = 1080;
 const H = 1920;
-const DESKS = ["#c8452f", "#2f6f6a", "#e0a526", "#3b3a8f", "#7a3b5c", "#1c1c1a"];
+const DESKS = ["#c8452f", "#2f6f6a", "#e0a526", "#3b3a8f", "#7a3b5c", "#4f6b3a"];
 const PAPER = "#fcfcfa";
 const INK = "#1c1c1a";
 const SOFT = "#5a5a56";
@@ -63,15 +63,17 @@ function dashed(ctx: CanvasRenderingContext2D, x: number, y: number, w: number) 
 }
 
 function zigzagPaper(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  const tooth = 24;
+  // A whole number of teeth across the width, so both torn edges end exactly at the corners.
+  const count = Math.round(w / 24);
+  const tooth = w / count;
   ctx.beginPath();
   ctx.moveTo(x, y + tooth / 2);
-  for (let i = 0; i < w / tooth; i++) {
+  for (let i = 0; i < count; i++) {
     ctx.lineTo(x + i * tooth + tooth / 2, y);
     ctx.lineTo(x + (i + 1) * tooth, y + tooth / 2);
   }
   ctx.lineTo(x + w, y + h - tooth / 2);
-  for (let i = Math.floor(w / tooth); i > 0; i--) {
+  for (let i = count; i > 0; i--) {
     ctx.lineTo(x + i * tooth - tooth / 2, y + h);
     ctx.lineTo(x + (i - 1) * tooth, y + h - tooth / 2);
   }

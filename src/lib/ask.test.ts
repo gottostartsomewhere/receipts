@@ -70,6 +70,8 @@ describe("local rules fallback", () => {
   it("understands simple questions without a model", () => {
     expect(ruleQuery("How much did I spend on biryani in March?", ["biryani", "naan"])).toEqual({ metric: "spend", item: "biryani", month: 3 });
     expect(ruleQuery("how many orders after 10pm", [])).toMatchObject({ metric: "orders", night: true });
+    expect(ruleQuery("How much did I spend on biryani?", ["chicken biryani", "mutton chukka"])).toEqual({ metric: "spend", item: "biryani" });
+    expect(ruleQuery("How much did I spend in March?", ["chicken biryani"])).toEqual({ metric: "spend", month: 3 });
   });
 });
 

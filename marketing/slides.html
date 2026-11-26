@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Receipts store images</title>
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-400.css" />
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-600.css" />
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-700.css" />
+    <style>
+      /* Store screenshots, 1280x800. Flat background, one straight real screen, big left-aligned
+         headline, one accent colour. Pick a slide with ?n=1..5, or ?tile for the 440x280 tile. */
+      :root { --bg: #1c1c1a; --paper: #fcfcfa; --soft: #a3a39e; --accent: #e0533f; --mono: "IBM Plex Mono", Consolas, monospace; }
+      * { box-sizing: border-box; margin: 0; }
+      html, body { width: 1280px; height: 800px; background: var(--bg); overflow: hidden; }
+      body { font-family: var(--mono); color: var(--paper); text-transform: uppercase; }
+      .slide { position: relative; width: 1280px; height: 800px; }
+      .copy { position: absolute; left: 80px; top: 0; bottom: 0; width: 600px; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+      .kicker { font-size: 15px; letter-spacing: 0.22em; color: var(--soft); }
+      h1 { font-size: 56px; line-height: 1.08; font-weight: 700; letter-spacing: -0.01em; }
+      h1 em { font-style: normal; color: var(--accent); }
+      .sub { font-size: 19px; line-height: 1.5; color: var(--soft); max-width: 540px; }
+      .tag { align-self: flex-start; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent); border: 2px solid var(--accent); padding: 5px 10px; }
+      /* The real receipt, cropped and torn at the bottom like the app */
+      .shot { position: absolute; right: 90px; top: 50%; transform: translateY(-50%); width: 440px; max-height: 704px; overflow: hidden;
+        -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 16px 51% repeat-x, linear-gradient(#000 0 0) top / 100% 51% no-repeat;
+        filter: drop-shadow(0 24px 40px rgba(0,0,0,0.45)); }
+      .shot img { display: block; width: 440px; }
+      .cards { position: absolute; right: 70px; top: 50%; transform: translateY(-50%); display: flex; gap: 18px; }
+      .cards img { width: 196px; height: 349px; object-fit: cover; box-shadow: 0 18px 36px rgba(0,0,0,0.45); }
+      /* Tile */
+      .tile { width: 440px; height: 280px; padding: 34px 36px; display: flex; flex-direction: column; justify-content: space-between; }
+      .tile .row { display: flex; align-items: center; gap: 16px; }
+      .tile img { width: 64px; height: 64px; }
+      .tile .name { font-size: 30px; font-weight: 700; letter-spacing: 0.18em; }
+      .tile .line { font-size: 26px; font-weight: 700; line-height: 1.15; }
+      .tile .line em { font-style: normal; color: var(--accent); }
+      .tile .small { font-size: 12px; letter-spacing: 0.12em; color: var(--soft); }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      const SLIDES = {
+        1: { kicker: "Receipts for Chrome", h: "Every <em>fee</em> you paid on top.", sub: "Platform, delivery, packing, convenience. By app, by kind and by month, read from your own orders.", tag: "Read on your laptop", img: "shots/fees.png", y: 0 },
+        2: { kicker: "Private by design", h: "Read on your laptop. <em>Not</em> uploaded.", sub: "Gemini Nano, built into Chrome, reads every order on your device. Only a dozen rounded totals you approve ever reach the cloud.", tag: "On device", img: "shots/reading.png", y: 205 },
+        3: { kicker: "Your year", h: "Your orders, <em>itemised</em>.", sub: "Amazon, Swiggy, Flipkart, Blinkit, BookMyShow, or any shop's order page. Saved in your browser, nowhere else.", tag: "Read on your laptop", img: "shots/home.png", y: 380 },
+        4: { kicker: "Your Wrapped", h: "Twelve cards. <em>Fourteen</em> facts sent.", sub: "Gemini writes the jokes from rounded totals. Cards with real restaurant names are drawn on your laptop.", tag: "You approve what leaves", cards: ["shots/card-6.png", "shots/card-5.png", "shots/card-7.png"] },
+        5: { kicker: "Ask your receipts", h: "Ask. Get an <em>exact</em> answer.", sub: "Gemini Nano reads the question on your laptop. The number is counted from your orders, so it is never made up.", tag: "On device", img: "shots/ask.png", y: 0 },
+      };
+      const p = new URLSearchParams(location.search);
+      const root = document.getElementById("root");
+      if (p.has("tile")) {
+        document.documentElement.style.cssText = "width:440px;height:280px";
+        document.body.style.cssText = "width:440px;height:280px";
+        root.innerHTML = `<div class="tile"><div class="row"><img src="../public/icons/icon128.png" alt=""><span class="name">RECEIPTS</span></div><div class="line">Your year of orders.<br>Every <em>fee</em> found.</div><div class="small">Read on your laptop by Gemini Nano</div></div>`;
+      } else {
+        const s = SLIDES[p.get("n") || 1];
+        const visual = s.cards
+          ? `<div class="cards">${s.cards.map((c) => `<img src="${c}" alt="">`).join("")}</div>`
+          : `<div class="shot"><img src="${s.img}" alt="" style="margin-top:-${s.y}px"></div>`;
+        root.innerHTML = `<div class="slide"><div class="copy"><p class="kicker">${s.kicker}</p><h1>${s.h}</h1><p class="sub">${s.sub}</p><span class="tag">${s.tag}</span></div>${visual}</div>`;
+      }
+    </script>
+  </body>
+</html>

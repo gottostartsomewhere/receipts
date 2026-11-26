@@ -89,6 +89,15 @@ export function ruleQuery(question: string, knownItems: string[]): Query {
   if (/night|after 10|late/.test(q)) query.night = true;
   const item = [...knownItems].sort((a, b) => b.length - a.length).find((k) => q.includes(k));
   if (item) query.item = item;
+  else {
+    // "biryani" in the question should match labels like "chicken biryani" too.
+    const stop = new Set(["much", "many", "spend", "spent", "order", "orders", "what", "with", "from", "this", "year", "times", "money", "after", "night", "biggest"]);
+    const word = q
+      .split(/[^a-z]+/)
+      .filter((w) => w.length >= 4 && !stop.has(w) && !MONTHS.some((m) => m.startsWith(w) || w.startsWith(m.slice(0, 3))))
+      .find((w) => knownItems.some((k) => k.split(" ").includes(w)));
+    if (word) query.item = word;
+  }
   for (const [word, cat] of Object.entries({ food: "food_delivery", grocer: "groceries", snack: "snacks", electronic: "electronics", gadget: "electronics", cloth: "fashion", fashion: "fashion", book: "books", beauty: "beauty", travel: "travel" } as Record<string, Category>)) {
     if (!query.item && q.includes(word)) query.category = cat;
   }

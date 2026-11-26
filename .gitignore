@@ -8,3 +8,5 @@ firebase-debug.log
 *.zip
 .claude/
 dist-web/
+marketing/shots/
+release/
