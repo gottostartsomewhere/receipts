@@ -66,7 +66,7 @@ Certify:
 - Not used or transferred for purposes unrelated to the item's single purpose.
 - Not used or transferred to determine creditworthiness or for lending.
 
-Privacy policy URL: the PRIVACY.md file in the public GitHub repository (link it once the repo is public).
+Privacy policy URL: https://github.com/gottostartsomewhere/receipts/blob/main/PRIVACY.md
 
 ## Test instructions (for reviewers and judges)
 
