@@ -268,6 +268,34 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 .answers .a .dots { flex: 1; border-bottom: 1px dotted var(--ink-faint); transform: translateY(-4px); }
 .answers .d { font-size: 11px; color: var(--ink-soft); }
 
+/* Start */
+.intro { list-style: none; margin: 0 0 18px; padding: 0; }
+.intro li { display: flex; gap: 10px; padding: 4px 0; color: var(--ink-soft); }
+.intro .n { flex: none; width: 20px; height: 20px; border: 1.5px solid var(--ink); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--ink); }
+.intro strong { color: var(--ink); }
+.more-shops { margin-top: 8px; }
+.more-shops summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); }
+.more-shops summary:hover { color: var(--ink); }
+
+/* Reading */
+.timer { font-size: 11px; color: var(--ink-soft); margin-bottom: 8px; }
+.timer #elapsed { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+
+/* Your year */
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 14px 0 16px; border: 1.5px solid var(--ink); }
+.tabs button { background: none; border: 0; padding: 9px 4px; font-weight: 700; letter-spacing: 0.1em; color: var(--ink-soft); }
+.tabs button + button { border-left: 1.5px solid var(--ink); }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.payload .strong dt, .payload .strong dd { color: var(--ink); font-weight: 700; }
+.home-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.home-actions .ghost { margin-top: 0; font-size: 12px; }
+@media (max-width: 400px) { .home-actions { grid-template-columns: 1fr; } }
+.fee-total { border: 1.5px solid var(--ink); padding: 12px; text-align: center; display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
+.fee-total span:first-child { font-size: 11px; letter-spacing: 0.1em; color: var(--ink-soft); }
+.fee-total .big { font-size: 34px; font-weight: 700; line-height: 1.1; }
+.fee-total span:last-child { font-size: 12px; color: var(--ink-soft); }
+.fees-head { font-weight: 700; letter-spacing: 0.06em; margin: 14px 0 4px; font-size: 12px; }
+
 [hidden] { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) {

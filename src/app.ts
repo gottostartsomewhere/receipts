@@ -1,38 +1,46 @@
 import { answerQuery, groundQuery, parseQueryLine, ruleQuery, type Query } from "./lib/ask";
 import { downloadCanvas, drawCard, type CardSpec } from "./lib/cards";
+import { feeReport } from "./lib/fees";
 import { askModel, firebaseConfigured, labelModel, nanoState, warmNano, type NanoState } from "./lib/firebase";
 import { privateCards, privateInsights } from "./lib/insights";
 import { labelItems, uniqueItemNames } from "./lib/labeler";
 import { getLedger, onLedgerChange, recordOnDevice, recordRead, type DeviceLedger } from "./lib/ledger";
 import { sampleOrders, type PersonaId } from "./lib/sample";
-import { CATALOG, type CatalogShop } from "./lib/stores/catalog";
-import { readCatalogShop, readStore, STORES, type StoreInfo } from "./lib/stores/readers";
+import { forgetYear, loadTickedShops, loadYear, saveTickedShops, saveYear, type RunSource } from "./lib/store";
 import { readPage } from "./lib/stores/anypage";
+import { CATALOG, type CatalogShop } from "./lib/stores/catalog";
 import { getPages, onPagesChange, removePage, type PageGrab } from "./lib/stores/pages";
+import { readCatalogShop, readStore, STORES, type StoreInfo } from "./lib/stores/readers";
 import { NotSignedIn } from "./lib/stores/tab";
 import { countFacts, formatMoney, normalizeName, summarize, toCloudPayload, type CloudPayload } from "./lib/summary";
-import { CATEGORY_NAMES, type ItemLabel, type Order } from "./lib/types";
+import { CATEGORY_NAMES, type Currency, type ItemLabel, type Order } from "./lib/types";
 import { localWrapped, writeWrapped, type Wrapped } from "./lib/wrapped";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const screens = ["screen-start", "screen-reading", "screen-review", "screen-wrapped"] as const;
-function show(id: (typeof screens)[number]) {
+const screens = ["screen-start", "screen-reading", "screen-home"] as const;
+type Screen = (typeof screens)[number];
+function show(id: Screen) {
   for (const s of screens) $(s).hidden = s !== id;
   $(id).querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
+  window.scrollTo({ top: 0 });
 }
 
 const YEAR = new Date().getFullYear();
-const state: { orders: Order[]; labels: Map<string, ItemLabel>; payload?: CloudPayload; abort?: AbortController } = {
-  orders: [],
-  labels: new Map(),
-};
-
-// ---------- Start screen ----------
+const state: {
+  orders: Order[];
+  labels: Map<string, ItemLabel>;
+  payload?: CloudPayload;
+  wrapped?: Wrapped;
+  sentToCloud?: boolean;
+  source?: RunSource;
+  savedAt?: string;
+  abort?: AbortController;
+} = { orders: [], labels: new Map() };
 
 $("today").textContent = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
 
-// The same page runs as the extension and as the hosted web demo. Reading real shops needs the
+// The same page runs as the extension and as a web demo. Reading real shops needs the
 // extension (background tabs, the person's sign-ins); the web version offers the demo store
 // and sample years.
 const IN_EXTENSION = Boolean((globalThis as { chrome?: { runtime?: { id?: string } } }).chrome?.runtime?.id);
@@ -41,7 +49,8 @@ if (!IN_EXTENSION) {
   $("web-note").hidden = false;
 }
 
-// Pick shops or added pages, or leave them all unticked to use the demo store or a sample year.
+// ================= START =================
+
 function refreshStartLabel() {
   const any = [...document.querySelectorAll<HTMLInputElement>('input[name="shop"], input[name="page"]')].some((s) => s.checked);
   const choice = document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value;
@@ -63,41 +72,46 @@ const SHOPS: ShopOption[] = [
   ...STORES.map((s) => ({ id: s.id, label: s.label, region: REGION_OF[s.id] ?? "IN", beta: !VERIFIED.has(s.id), origins: s.origins })),
   ...CATALOG.map((c) => ({ id: c.id, label: c.label, region: c.region, beta: c.beta, origins: c.origins })),
 ];
+const HOME_REGION: "IN" | "US" = /Asia\/(Calcutta|Kolkata)/.test(Intl.DateTimeFormat().resolvedOptions().timeZone) ? "IN" : "US";
 
-function renderShops() {
-  const home: "IN" | "US" = Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Calcutta" || Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Kolkata" ? "IN" : "US";
-  const regions: ("IN" | "US")[] = home === "IN" ? ["IN", "US"] : ["US", "IN"];
-  const box = $("shops");
+function shopGrid(box: HTMLElement, list: ShopOption[], ticked: Set<string>) {
   box.replaceChildren();
+  const regions: ("IN" | "US")[] = HOME_REGION === "IN" ? ["IN", "US"] : ["US", "IN"];
   for (const region of regions) {
+    const shops = list.filter((s) => s.region === region);
+    if (!shops.length) continue;
     const h = document.createElement("p");
     h.className = "shops-region";
     h.textContent = region === "IN" ? "India" : "United States";
     const grid = document.createElement("div");
     grid.className = "shops-grid";
-    for (const shop of SHOPS.filter((s) => s.region === region)) {
+    for (const shop of shops) {
       const row = document.createElement("label");
       row.className = "shop check";
       const input = document.createElement("input");
       input.type = "checkbox";
       input.name = "shop";
       input.value = shop.id;
+      input.checked = ticked.has(shop.id);
       input.addEventListener("change", refreshStartLabel);
       const name = document.createElement("span");
       name.textContent = shop.label;
       row.append(input, name);
-      if (shop.beta) {
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = "beta";
-        row.append(tag);
-      }
       grid.append(row);
     }
     box.append(h, grid);
   }
 }
-renderShops();
+
+async function renderShops() {
+  const ticked = new Set(await loadTickedShops());
+  shopGrid($("shops"), SHOPS.filter((s) => !s.beta), ticked);
+  shopGrid($("shops-beta"), SHOPS.filter((s) => s.beta), ticked);
+  // Open the beta drawer if something in it was ticked last time.
+  if (SHOPS.some((s) => s.beta && ticked.has(s.id))) ($("shops-beta").closest("details") as HTMLDetailsElement).open = true;
+  refreshStartLabel();
+}
+void renderShops();
 
 let pages: PageGrab[] = [];
 async function renderPages() {
@@ -150,21 +164,39 @@ void refreshNano().then(() => {
   if (nano === "available") void warmNano();
 });
 
-$("start").addEventListener("click", async () => {
-  const pick = document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value ?? "demo";
-  const persona = (pick === "seattle" ? "seattle" : "chennai") as PersonaId;
-  const allowCloud = $<HTMLInputElement>("allow-cloud").checked;
+/** Works out what to read from the start screen. */
+function chosenSource(): { source: RunSource; stores: StoreInfo[]; shops: CatalogShop[]; pages: PageGrab[] } {
   const ticked = new Set([...document.querySelectorAll<HTMLInputElement>('input[name="shop"]:checked')].map((b) => b.value));
-  const chosen = STORES.filter((s) => ticked.has(s.id));
-  const chosenShops = CATALOG.filter((c) => ticked.has(c.id));
-  const chosenPages = pages.filter((p) => [...document.querySelectorAll<HTMLInputElement>('input[name="page"]:checked')].some((b) => b.value === p.url));
+  const stores = STORES.filter((s) => ticked.has(s.id));
+  const shops = CATALOG.filter((c) => ticked.has(c.id));
+  const pageUrls = new Set([...document.querySelectorAll<HTMLInputElement>('input[name="page"]:checked')].map((b) => b.value));
+  const chosenPages = pages.filter((p) => pageUrls.has(p.url));
+  if (stores.length || shops.length || chosenPages.length) {
+    const label = [...stores.map((s) => s.label), ...shops.map((s) => s.label), ...chosenPages.map((p) => p.host)].join(", ");
+    return { source: { kind: "shops", shops: [...ticked], pages: [...pageUrls], label }, stores, shops, pages: chosenPages };
+  }
+  const pick = document.querySelector<HTMLInputElement>('input[name="sample"]:checked')?.value ?? "demo";
+  if (pick === "demo") return { source: { kind: "demo", label: "Demo store (made up)" }, stores, shops, pages: [] };
+  const persona = pick === "seattle" ? "seattle" : "chennai";
+  return { source: { kind: "sample", persona, label: `Sample year: ${persona === "seattle" ? "Seattle" : "Chennai"}` }, stores, shops, pages: [] };
+}
+
+/** Rebuilds the same reading plan from a saved source, for "Read again". */
+function planFor(source: RunSource): { stores: StoreInfo[]; shops: CatalogShop[]; pages: PageGrab[] } {
+  const ids = new Set(source.shops ?? []);
+  const urls = new Set(source.pages ?? []);
+  return { stores: STORES.filter((s) => ids.has(s.id)), shops: CATALOG.filter((c) => ids.has(c.id)), pages: pages.filter((p) => urls.has(p.url)) };
+}
+
+async function begin(source: RunSource, stores: StoreInfo[], shops: CatalogShop[], chosenPages: PageGrab[]) {
   // Ask for access to only the chosen shops. This must be the first await, inside the click.
-  const origins = [...new Set([...chosen, ...chosenShops].flatMap((s) => s.origins))];
+  const origins = [...new Set([...stores, ...shops].flatMap((s) => s.origins))];
   if (origins.length) {
     const granted = await chrome.permissions.request({ origins });
     if (!granted) {
-      $("start-note").textContent = "Receipts needs permission to open those stores' order pages. Nothing was read.";
+      $("start-note").textContent = "Receipts needs permission to open those shops' order pages. Nothing was read.";
       $("start-note").hidden = false;
+      show("screen-start");
       return;
     }
   }
@@ -175,18 +207,25 @@ $("start").addEventListener("click", async () => {
       .initializeDeviceModel((p) => ($("nano-state").textContent = `DOWNLOADING ${Math.round(p * 100)}%`))
       .then(refreshNano);
   }
-  const real = chosen.length > 0 || chosenShops.length > 0 || chosenPages.length > 0;
-  await run(
-    real
-      ? async () => [...(await loadStores(chosen)), ...(await loadCatalog(chosenShops)), ...(await loadPages(chosenPages))]
-      : pick === "demo"
+  if (source.kind === "shops") void saveTickedShops(source.shops ?? []);
+  const allowCloud = $<HTMLInputElement>("allow-cloud").checked;
+  const load =
+    source.kind === "shops"
+      ? async () => [...(await loadStores(stores)), ...(await loadCatalog(shops)), ...(await loadPages(chosenPages))]
+      : source.kind === "demo"
         ? () => loadDemo()
-        : () => loadSample(persona),
-    allowCloud,
-  );
+        : () => loadSample((source.persona ?? "chennai") as PersonaId);
+  await run(source, load, allowCloud);
+}
+
+$("start").addEventListener("click", () => {
+  const { source, stores, shops, pages: chosenPages } = chosenSource();
+  void begin(source, stores, shops, chosenPages);
 });
 
-// ---------- Reading + labelling ----------
+$("back-home").addEventListener("click", () => void showHome());
+
+// ================= READING =================
 
 function feedLine(what: string, amount: string, became?: string, stamp?: { kind: string; text: string }) {
   const li = document.createElement("li");
@@ -223,8 +262,22 @@ function setProgress(fraction: number) {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+let timer: ReturnType<typeof setInterval> | undefined;
+function startTimer() {
+  const began = Date.now();
+  const tick = () => {
+    const s = Math.floor((Date.now() - began) / 1000);
+    $("elapsed").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+  tick();
+  clearInterval(timer);
+  timer = setInterval(tick, 1000);
+}
+const stopTimer = () => clearInterval(timer);
+
 /** Prints a sample year quickly, the way a real read would arrive. */
 async function loadSample(persona: PersonaId): Promise<Order[]> {
+  $("reading-hint").textContent = "Sample year: no shops to open. Nano still labels every item.";
   const orders = sampleOrders(persona, YEAR);
   for (let i = 0; i < orders.length; i++) {
     $("count-orders").textContent = String(i + 1);
@@ -242,6 +295,7 @@ async function loadStores(stores: StoreInfo[]): Promise<Order[]> {
   const all: Order[] = [];
   for (const [n, store] of stores.entries()) {
     $("reading-title").textContent = `READING ${store.label}`;
+    $("reading-hint").textContent = `${store.label}: reading your order history in a background tab.`;
     feedLine(`Opening ${store.label} in a background tab`, "");
     let printed = 0;
     try {
@@ -257,7 +311,7 @@ async function loadStores(stores: StoreInfo[]): Promise<Order[]> {
       feedLine(err instanceof NotSignedIn ? `${store.label}: not signed in` : `${store.label}: could not read`, "SKIPPED");
     }
     $("count-orders").textContent = String(all.length);
-    setProgress((n + 1) / stores.length);
+    setProgress((n + 1) / Math.max(1, stores.length));
   }
   return all;
 }
@@ -286,6 +340,8 @@ function renderedText(src: string): Promise<string> {
  */
 async function loadDemo(): Promise<Order[]> {
   $("reading-title").textContent = nano === "available" ? "GEMINI NANO IS READING THE DEMO STORE" : "READING THE DEMO STORE";
+  $("reading-hint").textContent =
+    nano === "available" ? "Nano reads about one order every few seconds on a laptop like this." : "No Nano here, so the cloud reads this made-up page.";
   if (!firebaseConfigured) {
     feedLine("Demo store: Firebase is not set up in this build", "SKIPPED");
     return [];
@@ -314,6 +370,7 @@ async function loadCatalog(shops: CatalogShop[]): Promise<Order[]> {
   const all: Order[] = [];
   for (const shop of shops) {
     $("reading-title").textContent = `READING ${shop.label}`;
+    $("reading-hint").textContent = `${shop.label}: loading the year in a background tab, then Nano reads it.`;
     if (nano !== "available" || !firebaseConfigured) {
       feedLine(`${shop.label}: needs Gemini Nano on this laptop`, "SKIPPED");
       continue;
@@ -355,7 +412,7 @@ async function loadPages(chosen: PageGrab[]): Promise<Order[]> {
         YEAR,
         (o) => {
           all.push(o);
-          feedLine(`${o.merchant}: ${o.items[0] ?? ""}`, formatMoney(o.total, o.currency), undefined);
+          feedLine(`${o.merchant}: ${o.items[0]?.name ?? ""}`, formatMoney(o.total, o.currency));
           $("count-orders").textContent = String(Number($("count-orders").textContent) + 1);
         },
         state.abort?.signal,
@@ -369,35 +426,36 @@ async function loadPages(chosen: PageGrab[]): Promise<Order[]> {
   return all;
 }
 
-async function run(load: () => Promise<Order[]>, allowCloud: boolean) {
+async function run(source: RunSource, load: () => Promise<Order[]>, allowCloud: boolean) {
   state.abort = new AbortController();
   $("feed").replaceChildren();
   $("count-orders").textContent = "0";
   $("count-items").textContent = "0";
   $("start-note").hidden = true;
-  $("ask").hidden = true;
   setProgress(0);
   show("screen-reading");
+  startTimer();
 
-  // 1. Orders: structured data from the store, read on this laptop.
+  // 1. Orders, read on this laptop.
   $("reading-title").textContent = "READING ORDERS";
   const orders = await load();
   const delivered = orders.filter((o) => o.date.startsWith(String(YEAR)));
   if (delivered.length === 0) {
-    $("start-note").textContent = `No ${YEAR} orders found. Sign in to the store in Chrome first, or try a sample year.`;
+    stopTimer();
+    $("start-note").textContent = `No ${YEAR} orders found. Sign in to the shop in Chrome first, or try the demo store.`;
     $("start-note").hidden = false;
     show("screen-start");
     return;
   }
-  state.orders = orders;
 
   // 2. Items: Gemini Nano turns messy product names into labels, on this laptop.
   const names = uniqueItemNames(delivered);
   const itemCount = delivered.reduce((n, o) => n + o.items.reduce((m, it) => m + it.qty, 0), 0);
   await recordRead(delivered.length, itemCount);
   $("reading-title").textContent = nano === "available" ? "GEMINI NANO IS READING YOUR ITEMS" : "UNDERSTANDING YOUR ITEMS";
+  $("reading-hint").textContent = "Turning product names into things you would recognise.";
   setProgress(0);
-  state.labels = await labelItems(names, {
+  const labels = await labelItems(names, {
     allowCloud,
     signal: state.abort.signal,
     onProgress: (p) => {
@@ -409,18 +467,38 @@ async function run(load: () => Promise<Order[]>, allowCloud: boolean) {
           : p.source === "rules"
             ? { kind: "rules", text: "LOCAL RULES" }
             : { kind: "device", text: "ON DEVICE" };
-      for (const { name, label } of p.latest) {
-        feedLine(name, "", `${label.label} (${CATEGORY_NAMES[label.category]})`, stamp);
-      }
+      for (const { name, label } of p.latest) feedLine(name, "", `${label.label} (${CATEGORY_NAMES[label.category]})`, stamp);
     },
   });
+  stopTimer();
 
-  review();
+  // 3. Keep the year in this browser, so reopening Receipts shows it straight away.
+  state.orders = orders;
+  state.labels = labels;
+  state.source = source;
+  state.wrapped = undefined;
+  state.sentToCloud = false;
+  state.savedAt = new Date().toISOString();
+  await persist();
+  await showHome();
 }
 
 $("stop").addEventListener("click", () => state.abort?.abort());
 
-// ---------- Review: show exactly what would leave ----------
+async function persist() {
+  if (!state.source) return;
+  await saveYear({
+    year: YEAR,
+    savedAt: state.savedAt ?? new Date().toISOString(),
+    source: state.source,
+    orders: state.orders,
+    labels: [...state.labels.entries()],
+    wrapped: state.wrapped,
+    sentToCloud: state.sentToCloud,
+  });
+}
+
+// ================= YOUR YEAR =================
 
 const FIELD_NAMES: Partial<Record<keyof CloudPayload, string>> = {
   year: "Year",
@@ -445,34 +523,129 @@ function displayValue(key: keyof CloudPayload, value: unknown, p: CloudPayload):
   return String(value);
 }
 
-function review() {
+/** One "label ....... value" receipt line. */
+function line(dl: HTMLElement, label: string, value: string, strong = false) {
+  const row = document.createElement("div");
+  if (strong) row.className = "strong";
+  const dt = document.createElement("dt");
+  dt.textContent = label;
+  const dots = document.createElement("span");
+  dots.className = "dots";
+  const dd = document.createElement("dd");
+  dd.textContent = value;
+  row.append(dt, dots, dd);
+  dl.append(row);
+}
+
+function selectTab(name: "wrapped" | "fees" | "ask") {
+  for (const t of ["wrapped", "fees", "ask"] as const) {
+    $(`tab-${t}`).setAttribute("aria-selected", String(t === name));
+    $(`panel-${t}`).hidden = t !== name;
+  }
+}
+for (const t of ["wrapped", "fees", "ask"] as const) $(`tab-${t}`).addEventListener("click", () => selectTab(t));
+
+async function showHome() {
   const summary = summarize(state.orders, state.labels, YEAR);
   const payload = toCloudPayload(summary);
   state.payload = payload;
+  const fees = feeReport(state.orders, YEAR);
+
+  // Summary block
+  const head = $("home-summary");
+  head.replaceChildren();
+  line(head, "Year", String(YEAR));
+  line(head, "Orders", summary.orderCount.toLocaleString());
+  line(head, "Spent", formatMoney(summary.totalSpend, summary.currency), true);
+  line(head, "Fees on top", fees.total > 0 ? formatMoney(fees.total, summary.currency) : "none shown", fees.total > 0);
+  line(head, "Read from", state.source?.label ?? "");
+
+  // Wrapped tab: review first, cards once made
+  renderReview(summary.orderCount, summary.itemCount, payload);
+  if (state.wrapped) await renderWrapped(state.wrapped);
+  else {
+    $("review").hidden = false;
+    $("wrapped").hidden = true;
+  }
+
+  renderFees(fees, summary.currency);
+  setUpAsk(summary.topLabels[0]?.label, summary.busiestMonth.month, summary.lateNightShare !== undefined, fees.total > 0);
+
+  const when = state.savedAt ? new Date(state.savedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+  $("saved-note").textContent = `Saved in this browser only${when ? `, ${when}` : ""}. Nothing is uploaded; "Forget this year" deletes it.`;
+  $("read-again").hidden = !state.source || (state.source.kind === "shops" && !IN_EXTENSION);
+  $("back-home").hidden = false;
+  selectTab("wrapped");
+  show("screen-home");
+}
+
+function renderReview(orderCount: number, itemCount: number, payload: CloudPayload) {
   const dl = $("payload");
   dl.replaceChildren();
   for (const [key, value] of Object.entries(payload) as [keyof CloudPayload, unknown][]) {
     if (value === undefined) continue;
-    const row = document.createElement("div");
-    const dt = document.createElement("dt");
-    dt.textContent = FIELD_NAMES[key] ?? key;
-    const dots = document.createElement("span");
-    dots.className = "dots";
-    const dd = document.createElement("dd");
-    dd.textContent = displayValue(key, value, payload);
-    row.append(dt, dots, dd);
-    dl.append(row);
+    line(dl, FIELD_NAMES[key] ?? key, displayValue(key, value, payload));
   }
   $("review-note").textContent =
-    `${summary.orderCount} orders and ${summary.itemCount} items were read on this laptop. ` +
-    `These ${countFacts(payload)} facts are all Gemini in the cloud would see: no item list, no dates, no addresses, no exact amounts.`;
-  $("send").textContent = firebaseConfigured ? `SEND THESE ${countFacts(payload)} FACTS TO GEMINI` : "CLOUD NOT SET UP YET";
-  $<HTMLButtonElement>("send").disabled = !firebaseConfigured;
-  setUpAsk(summary.topLabels[0]?.label, summary.busiestMonth.month, summary.lateNightShare !== undefined, summary.totalFees > 0);
-  show("screen-review");
+    `${orderCount} orders and ${itemCount} items were read on this laptop. ` +
+    `These ${countFacts(payload)} facts are all Gemini in the cloud would see to write your Wrapped: no item list, no dates, no addresses, no exact amounts.`;
+  const send = $<HTMLButtonElement>("send");
+  send.textContent = firebaseConfigured ? `SEND THESE ${countFacts(payload)} FACTS TO GEMINI` : "CLOUD NOT SET UP YET";
+  send.disabled = !firebaseConfigured;
+  $("send-error").hidden = true;
 }
 
-// ---------- Ask your receipts ----------
+function renderFees(report: ReturnType<typeof feeReport>, currency: Currency) {
+  const box = $("fees-receipt");
+  box.replaceChildren();
+  const m = (n: number) => formatMoney(n, currency);
+  const p = (text: string, cls: string) => {
+    const el = document.createElement("p");
+    el.className = cls;
+    el.textContent = text;
+    box.append(el);
+  };
+  if (report.total <= 0) {
+    p("NO FEES FOUND", "section-title");
+    p("Amazon and Flipkart order lists don't show fees. Swiggy, BookMyShow and food or grocery apps do, so read one of those to see what you paid on top.", "note");
+    return;
+  }
+  const big = document.createElement("div");
+  big.className = "fee-total";
+  const kicker = document.createElement("span");
+  kicker.textContent = "FEES ON TOP OF WHAT YOU BOUGHT";
+  const amount = document.createElement("span");
+  amount.className = "big";
+  amount.textContent = m(report.total);
+  const sub = document.createElement("span");
+  sub.textContent = `${(report.share * 100).toFixed(1)}% of what you spent, on ${report.ordersWithFees} order${report.ordersWithFees === 1 ? "" : "s"}`;
+  big.append(kicker, amount, sub);
+  box.append(big);
+
+  p("BY APP", "fees-head");
+  const byApp = document.createElement("dl");
+  byApp.className = "payload";
+  for (const s of report.byShop) line(byApp, s.shop, m(s.amount));
+  box.append(byApp);
+
+  p("EVERY KIND OF FEE", "fees-head");
+  const byKind = document.createElement("dl");
+  byKind.className = "payload";
+  for (const l of report.lines) line(byKind, `${l.shop} ${l.label} ×${l.times}`, m(l.amount));
+  line(byKind, "Total fees", m(report.total), true);
+  box.append(byKind);
+
+  if (report.largest) {
+    const d = new Date(`${report.largest.date}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    p(`Largest single fee: ${report.largest.shop} ${report.largest.label}, ${m(report.largest.amount)} on ${d}.`, "small-note");
+  }
+  p(
+    "Charges like these, shown late at checkout, are what India's consumer regulator calls drip pricing; in 2026 it fined nine platforms over dark patterns. A fee only counts here if it is printed on that order.",
+    "small-note",
+  );
+}
+
+// ================= ASK =================
 
 function setUpAsk(favourite: string | undefined, busiestMonth: string, hasHours: boolean, hasFees: boolean) {
   $("answers").replaceChildren();
@@ -482,7 +655,7 @@ function setUpAsk(favourite: string | undefined, busiestMonth: string, hasHours:
     hasFees ? "How much did I pay in fees?" : "",
     favourite ? `How much did I spend on ${favourite}?` : "",
     `What was my biggest order in ${busiestMonth}?`,
-    hasHours ? "How many orders after 10pm?" : "How many orders in October?",
+    hasHours ? "How many orders after 10pm?" : "",
   ].filter(Boolean);
   for (const ex of examples) {
     const b = document.createElement("button");
@@ -491,7 +664,6 @@ function setUpAsk(favourite: string | undefined, busiestMonth: string, hasHours:
     b.addEventListener("click", () => void ask(ex));
     chips.append(b);
   }
-  $("ask").hidden = false;
 }
 
 async function ask(question: string) {
@@ -548,6 +720,8 @@ $("ask-form").addEventListener("submit", (e) => {
   input.value = "";
 });
 
+// ================= WRAPPED =================
+
 $("send").addEventListener("click", async () => {
   if (!state.payload) return;
   const btn = $<HTMLButtonElement>("send");
@@ -555,7 +729,10 @@ $("send").addEventListener("click", async () => {
   btn.textContent = "GEMINI IS WRITING...";
   $("send-error").hidden = true;
   try {
-    await renderWrapped(await writeWrapped(state.payload));
+    state.wrapped = await writeWrapped(state.payload);
+    state.sentToCloud = true;
+    await persist();
+    await renderWrapped(state.wrapped);
   } catch (err) {
     console.error(err);
     $("send-error").textContent = `The cloud call failed (${err instanceof Error ? err.message : String(err)}). Nothing else was sent. You can keep it local instead.`;
@@ -565,11 +742,13 @@ $("send").addEventListener("click", async () => {
   }
 });
 
-$("keep-local").addEventListener("click", () => {
-  if (state.payload) void renderWrapped(localWrapped(state.payload));
+$("keep-local").addEventListener("click", async () => {
+  if (!state.payload) return;
+  state.wrapped = localWrapped(state.payload);
+  state.sentToCloud = false;
+  await persist();
+  await renderWrapped(state.wrapped);
 });
-
-// ---------- Wrapped ----------
 
 let drawn: { canvas: HTMLCanvasElement; name: string }[] = [];
 
@@ -578,6 +757,8 @@ async function renderWrapped(w: Wrapped) {
   const facts = w.source === "in_cloud" ? countFacts(p) : 0;
   const stayed = `${p.orders.toLocaleString()} orders stayed on my laptop.`;
   const left = facts ? `${facts} facts left it.` : "Nothing left it.";
+  $("review").hidden = true;
+  $("wrapped").hidden = false;
 
   $("persona").textContent = w.persona.toUpperCase();
   $("roast").textContent = w.roast;
@@ -602,7 +783,6 @@ async function renderWrapped(w: Wrapped) {
   const cards = $("cards");
   cards.replaceChildren();
   drawn = [];
-  show("screen-wrapped");
   for (let i = 0; i < specs.length; i++) {
     const canvas = await drawCard(specs[i], { year: p.year, index: i, total: specs.length, footer, stamp: specs[i].stamp });
     const name = `receipts-${p.year}-${i + 1}.png`;
@@ -629,12 +809,40 @@ $("save-all").addEventListener("click", async () => {
   }
 });
 
-$("again").addEventListener("click", () => {
-  $("ask").hidden = true;
+// ================= HOME ACTIONS =================
+
+$("read-again").addEventListener("click", () => {
+  if (!state.source) return;
+  const plan = planFor(state.source);
+  void begin(state.source, plan.stores, plan.shops, plan.pages);
+});
+
+$("change-shops").addEventListener("click", () => show("screen-start"));
+
+let forgetArmed = false;
+$("forget").addEventListener("click", async () => {
+  const btn = $("forget");
+  if (!forgetArmed) {
+    forgetArmed = true;
+    btn.textContent = "Tap again to delete it from this browser";
+    setTimeout(() => {
+      forgetArmed = false;
+      btn.textContent = "Forget this year";
+    }, 4000);
+    return;
+  }
+  forgetArmed = false;
+  btn.textContent = "Forget this year";
+  await forgetYear();
+  state.orders = [];
+  state.labels = new Map();
+  state.wrapped = undefined;
+  state.source = undefined;
+  $("back-home").hidden = true;
   show("screen-start");
 });
 
-// ---------- What left this device ----------
+// ================= WHAT LEFT THIS DEVICE =================
 
 function renderLedger(l: DeviceLedger) {
   const body = $("ledger-body");
@@ -663,6 +871,19 @@ function renderLedger(l: DeviceLedger) {
 }
 void getLedger().then(renderLedger);
 onLedgerChange(renderLedger);
+
+// ================= OPEN WHERE YOU LEFT OFF =================
+
+void loadYear().then(async (saved) => {
+  if (!saved || saved.year !== YEAR || !saved.orders?.length) return;
+  state.orders = saved.orders;
+  state.labels = new Map(saved.labels ?? []);
+  state.source = saved.source;
+  state.wrapped = saved.wrapped;
+  state.sentToCloud = saved.sentToCloud;
+  state.savedAt = saved.savedAt;
+  await showHome();
+});
 
 // Console hooks for testing on a dev machine. They run the same on-device code paths as the UI.
 Object.assign(globalThis, {

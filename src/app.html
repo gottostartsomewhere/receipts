@@ -8,7 +8,7 @@
   </head>
   <body>
     <main class="desk">
-      <article class="paper" id="paper" aria-live="polite">
+      <article class="paper" id="paper">
         <header class="masthead">
           <p class="brand" aria-label="Receipts">R E C E I P T S</p>
           <p class="tagline">your year, itemised</p>
@@ -21,21 +21,31 @@
           <hr class="rule" />
         </header>
 
+        <!-- ============ START ============ -->
         <section id="screen-start" class="screen">
-          <p class="note">Receipts reads your order history <strong>on this laptop</strong>: what you bought, what you spent, and the platform, delivery and packing fees you paid on top. The cloud only gets a handful of rounded totals, and you see every one of them before anything is sent.</p>
+          <ol class="intro">
+            <li><span class="n">1</span><span>Reads your order history <strong>on this laptop</strong>, with Gemini Nano.</span></li>
+            <li><span class="n">2</span><span>Adds up what you spent, and the <strong>fees added on top</strong>.</span></li>
+            <li><span class="n">3</span><span>You approve the <strong>few rounded totals</strong> that go to the cloud for your Wrapped.</span></li>
+          </ol>
 
-          <p class="small-note web-only" id="web-note" hidden>This is the web version. Reading your own shops needs the Receipts Chrome extension; here you can try the demo store or a sample year, with the same Gemini Nano and the same privacy rules.</p>
+          <p class="small-note" id="web-note" hidden>This is the web version. Reading your own shops needs the Receipts Chrome extension; here you can try the demo store or a sample year, with the same Gemini Nano and the same privacy rules.</p>
 
           <fieldset class="lines extension-only" id="shops-fieldset">
-            <legend>WHERE TO LOOK</legend>
+            <legend>YOUR SHOPS</legend>
             <div id="shops" class="shops"></div>
-            <p class="small-note">Each shop opens in a background tab using your existing sign-in, then closes. Gemini Nano reads the orders on this laptop. BETA means nobody has checked that shop against a real account yet.</p>
+            <details class="more-shops">
+              <summary>More shops (beta)</summary>
+              <div id="shops-beta" class="shops"></div>
+              <p class="small-note">Beta shops use the same reader but nobody has checked them against a real account yet.</p>
+            </details>
+            <p class="small-note">Each shop opens in a background tab with your existing sign-in, then closes. Receipts never reads delivery addresses.</p>
           </fieldset>
 
           <fieldset class="lines extension-only" id="pages-fieldset">
             <legend>ANY OTHER SHOP</legend>
             <div id="pages-list"></div>
-            <p class="small-note" id="pages-hint">Open any shop's order history page (Flipkart, Myntra, DoorDash, Walmart, anything) and click the Receipts icon there. Gemini Nano reads the orders off that page, on this laptop.</p>
+            <p class="small-note" id="pages-hint">Open any shop's order history page and click the Receipts icon there. Nano reads the orders off that page, on this laptop.</p>
           </fieldset>
 
           <fieldset class="lines">
@@ -43,7 +53,7 @@
             <label class="line check"><input type="radio" name="sample" value="demo" checked /><span>Demo store</span><span class="dots"></span><span class="tag">Nano reads a real page</span></label>
             <label class="line check"><input type="radio" name="sample" value="chennai" /><span>Sample year: Chennai</span><span class="dots"></span><span>₹</span></label>
             <label class="line check"><input type="radio" name="sample" value="seattle" /><span>Sample year: Seattle</span><span class="dots"></span><span>$</span></label>
-            <p class="small-note">The demo store is a made-up shop page, <a href="./demo-shop.html" target="_blank" rel="noopener">open it here</a>. Receipts reads it the same way it reads a real one and checks every order against the page.</p>
+            <p class="small-note">The demo store is a made-up shop page (<a href="./demo-shop.html" target="_blank" rel="noopener">open it</a>). Receipts reads it the same way it reads a real one.</p>
           </fieldset>
 
           <div class="line status"><span>GEMINI NANO</span><span class="dots"></span><span id="nano-state">checking</span></div>
@@ -54,50 +64,77 @@
 
           <p class="error" id="start-note" hidden></p>
           <button class="print" id="start" type="button">READ THE DEMO STORE</button>
+          <button class="ghost" id="back-home" type="button" hidden>Back to your saved year</button>
         </section>
 
-        <section id="screen-reading" class="screen" hidden>
+        <!-- ============ READING ============ -->
+        <section id="screen-reading" class="screen" hidden aria-live="polite">
           <p class="section-title" id="reading-title">READING ORDERS</p>
           <div class="tally">
             <div><span class="big" id="count-orders">0</span><span>orders</span></div>
             <div><span class="big" id="count-items">0</span><span>items understood</span></div>
           </div>
           <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><span></span></div>
+          <div class="line timer"><span id="reading-hint">Nano reads about one order every few seconds on a laptop like this.</span><span class="dots"></span><span id="elapsed">0:00</span></div>
           <ol class="feed" id="feed"></ol>
+          <p class="small-note">You can switch tabs; Receipts keeps reading.</p>
           <button class="ghost" id="stop" type="button">Stop and use what's read so far</button>
         </section>
 
-        <section id="screen-review" class="screen" hidden>
-          <p class="section-title">THE ONLY THINGS THAT WOULD LEAVE THIS LAPTOP</p>
-          <p class="note" id="review-note"></p>
-          <dl class="payload" id="payload"></dl>
-          <hr class="rule" />
-          <button class="print" id="send" type="button">SEND THESE TO GEMINI</button>
-          <button class="ghost" id="keep-local" type="button">Keep everything on this laptop</button>
-          <p class="error" id="send-error" hidden></p>
-        </section>
+        <!-- ============ YOUR YEAR ============ -->
+        <section id="screen-home" class="screen" hidden>
+          <p class="section-title" id="home-title">YOUR YEAR</p>
+          <dl class="payload" id="home-summary"></dl>
 
-        <section id="screen-wrapped" class="screen" hidden>
-          <p class="section-title" id="persona"></p>
-          <div class="cards" id="cards"></div>
-          <p class="roast" id="roast"></p>
-          <p class="comparison" id="comparison"></p>
-          <div class="closing" id="closing"></div>
-          <button class="print" id="save-all" type="button">SAVE ALL CARDS</button>
-          <button class="ghost" id="again" type="button">Start over</button>
-        </section>
+          <div class="tabs" role="tablist" aria-label="Your year">
+            <button role="tab" id="tab-wrapped" aria-controls="panel-wrapped" aria-selected="true" type="button">WRAPPED</button>
+            <button role="tab" id="tab-fees" aria-controls="panel-fees" aria-selected="false" type="button">FEES</button>
+            <button role="tab" id="tab-ask" aria-controls="panel-ask" aria-selected="false" type="button">ASK</button>
+          </div>
 
-        <section id="ask" class="ask" hidden aria-labelledby="ask-title">
+          <!-- Wrapped: first the review of what would leave, then the cards -->
+          <div role="tabpanel" id="panel-wrapped" aria-labelledby="tab-wrapped">
+            <div id="review">
+              <p class="section-title">THE ONLY THINGS THAT WOULD LEAVE THIS LAPTOP</p>
+              <p class="note" id="review-note"></p>
+              <dl class="payload" id="payload"></dl>
+              <hr class="rule" />
+              <button class="print" id="send" type="button">SEND THESE TO GEMINI</button>
+              <button class="ghost" id="keep-local" type="button">Keep everything on this laptop</button>
+              <p class="error" id="send-error" hidden></p>
+            </div>
+            <div id="wrapped" hidden>
+              <p class="section-title" id="persona"></p>
+              <div class="cards" id="cards"></div>
+              <p class="roast" id="roast"></p>
+              <p class="comparison" id="comparison"></p>
+              <div class="closing" id="closing"></div>
+              <button class="print" id="save-all" type="button">SAVE ALL CARDS</button>
+            </div>
+          </div>
+
+          <div role="tabpanel" id="panel-fees" aria-labelledby="tab-fees" hidden>
+            <div id="fees-receipt"></div>
+          </div>
+
+          <div role="tabpanel" id="panel-ask" aria-labelledby="tab-ask" hidden>
+            <p class="small-note">Answered on this laptop. Gemini Nano reads the question; the number is counted from your orders, so it is exact.</p>
+            <form id="ask-form" class="ask-form">
+              <label for="ask-input" class="visually-hidden">Your question</label>
+              <input id="ask-input" type="text" autocomplete="off" maxlength="160" placeholder="How much did I pay in fees in March?" />
+              <button class="ask-go" type="submit">ASK</button>
+            </form>
+            <div class="chips" id="ask-chips"></div>
+            <ol class="answers" id="answers" aria-live="polite"></ol>
+          </div>
+
           <hr class="rule" />
-          <p class="section-title" id="ask-title">ASK YOUR RECEIPTS</p>
-          <p class="small-note">Answered on this laptop. Gemini Nano reads the question; the number is counted from your orders, so it is exact.</p>
-          <form id="ask-form" class="ask-form">
-            <label for="ask-input" class="visually-hidden">Your question</label>
-            <input id="ask-input" type="text" autocomplete="off" maxlength="160" placeholder="How much did I spend on biryani in March?" />
-            <button class="ask-go" type="submit">ASK</button>
-          </form>
-          <div class="chips" id="ask-chips"></div>
-          <ol class="answers" id="answers"></ol>
+          <div class="home-actions">
+            <button class="ghost" id="read-again" type="button">Read again</button>
+            <button class="ghost" id="change-shops" type="button">Change shops</button>
+            <button class="ghost" id="forget" type="button">Forget this year</button>
+          </div>
+          <p class="small-note" id="saved-note"></p>
         </section>
 
         <footer class="ledger">
