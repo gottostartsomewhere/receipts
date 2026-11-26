@@ -18,6 +18,8 @@ export interface FeeReport {
   ordersWithFees: number;
   lines: FeeLine[];
   byShop: { shop: string; amount: number }[];
+  /** Fees per calendar month, January first. */
+  byMonth: number[];
   largest?: { shop: string; label: string; amount: number; date: string };
 }
 
@@ -31,13 +33,16 @@ export function feeReport(orders: Order[], year: number): FeeReport {
   let spend = 0;
   let ordersWithFees = 0;
   let largest: FeeReport["largest"];
+  const byMonth = Array.from({ length: 12 }, () => 0);
   for (const o of delivered) {
     spend += o.total;
     const fees = (o.fees ?? []).filter((f) => f.amount > 0);
     if (fees.length) ordersWithFees += 1;
     const shop = shopOf(o.merchant);
+    const month = Number(o.date.slice(5, 7)) - 1;
     for (const f of fees) {
       total += f.amount;
+      if (month >= 0 && month < 12) byMonth[month] += f.amount;
       shops.set(shop, (shops.get(shop) ?? 0) + f.amount);
       const key = `${shop}|${f.label}`;
       const line = lines.get(key) ?? { shop, label: f.label, times: 0, amount: 0 };
@@ -54,6 +59,7 @@ export function feeReport(orders: Order[], year: number): FeeReport {
     ordersWithFees,
     lines: [...lines.values()].map((l) => ({ ...l, amount: round2(l.amount) })).sort((a, b) => b.amount - a.amount),
     byShop: [...shops.entries()].map(([shop, amount]) => ({ shop, amount: round2(amount) })).sort((a, b) => b.amount - a.amount),
+    byMonth: byMonth.map(round2),
     largest,
   };
 }

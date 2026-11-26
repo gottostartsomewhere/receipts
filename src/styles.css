@@ -295,6 +295,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 .fee-total .big { font-size: 34px; font-weight: 700; line-height: 1.1; }
 .fee-total span:last-child { font-size: 12px; color: var(--ink-soft); }
 .fees-head { font-weight: 700; letter-spacing: 0.06em; margin: 14px 0 4px; font-size: 12px; }
+.month-chart { display: grid; gap: 3px; }
+.month-row { display: grid; grid-template-columns: 34px 1fr 64px; align-items: center; gap: 8px; font-size: 11px; }
+.month-row .track { height: 9px; background: repeating-linear-gradient(to right, var(--paper-edge) 0 2px, transparent 2px 5px); }
+.month-row .bar { display: block; height: 100%; background: var(--ink); min-width: 0; }
+.month-row .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 
 [hidden] { display: none !important; }
 

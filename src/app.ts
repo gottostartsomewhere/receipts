@@ -1,6 +1,7 @@
 import { answerQuery, groundQuery, parseQueryLine, ruleQuery, type Query } from "./lib/ask";
 import { downloadCanvas, drawCard, type CardSpec } from "./lib/cards";
 import { feeReport } from "./lib/fees";
+import { breakEvens } from "./lib/memberships";
 import { askModel, firebaseConfigured, labelModel, nanoState, warmNano, type NanoState } from "./lib/firebase";
 import { privateCards, privateInsights } from "./lib/insights";
 import { labelItems, uniqueItemNames } from "./lib/labeler";
@@ -638,6 +639,53 @@ function renderFees(report: ReturnType<typeof feeReport>, currency: Currency) {
   if (report.largest) {
     const d = new Date(`${report.largest.date}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
     p(`Largest single fee: ${report.largest.shop} ${report.largest.label}, ${m(report.largest.amount)} on ${d}.`, "small-note");
+  }
+
+  // Fees by month, as printed bars.
+  const monthsSoFar = new Date().getFullYear() === YEAR ? new Date().getMonth() + 1 : 12;
+  p("FEES BY MONTH", "fees-head");
+  const chart = document.createElement("div");
+  chart.className = "month-chart";
+  chart.setAttribute("role", "img");
+  const peak = Math.max(...report.byMonth.slice(0, monthsSoFar), 1);
+  const labelParts: string[] = [];
+  report.byMonth.slice(0, monthsSoFar).forEach((amount, i) => {
+    const name = new Date(YEAR, i, 1).toLocaleDateString("en-GB", { month: "short" });
+    labelParts.push(`${name} ${m(Math.round(amount))}`);
+    const row = document.createElement("div");
+    row.className = "month-row";
+    const mo = document.createElement("span");
+    mo.textContent = name;
+    const track = document.createElement("span");
+    track.className = "track";
+    const bar = document.createElement("span");
+    bar.className = "bar";
+    bar.style.width = `${Math.round((amount / peak) * 100)}%`;
+    track.append(bar);
+    const v = document.createElement("span");
+    v.className = "v";
+    v.textContent = amount > 0 ? m(Math.round(amount)) : "";
+    row.append(mo, track, v);
+    chart.append(row);
+  });
+  chart.setAttribute("aria-label", `Fees by month: ${labelParts.join(", ")}`);
+  box.append(chart);
+
+  // Would a membership have paid off? Shown as a break-even price, so no price is guessed.
+  const offers = breakEvens(report, monthsSoFar);
+  if (offers.length) {
+    p("WOULD A MEMBERSHIP HAVE PAID OFF?", "fees-head");
+    const dl = document.createElement("dl");
+    dl.className = "payload";
+    for (const o of offers) line(dl, o.name, `worth it under ${m(o.perYear)}/yr`, true);
+    box.append(dl);
+    for (const o of offers) {
+      p(
+        `You paid ${o.shop} ${m(o.paid)} in fees ${o.name} waives, on ${o.times} order${o.times === 1 ? "" : "s"} so far this year. ` +
+          `A year of ${o.name} costing less than about ${m(o.perYear)} would have paid for itself. Prices change, so check the app.`,
+        "small-note",
+      );
+    }
   }
   p(
     "Charges like these, shown late at checkout, are what India's consumer regulator calls drip pricing; in 2026 it fined nine platforms over dark patterns. A fee only counts here if it is printed on that order.",
