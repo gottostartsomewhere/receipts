@@ -46,6 +46,48 @@ if (mode === "still") {
     await page.screenshot({ path: path(`${STILLS}${t.toFixed(2)}.png`) });
   }
   console.log("stills", args.join(" "));
+} else if (mode === "check") {
+  // Every 0.1 s: text that touches the window, other text, or the frame edge; callouts covered
+  // by text or off frame. Callout and zoom positions go to out/<name>-align.json for
+  // check_align.py, which compares the pixels under them with the frame they were measured on.
+  const page = await openPage();
+  const dur = await page.evaluate(() => window.DURATION);
+  const step = Number(args[0] || 0.1);
+  const issues = [], align = [];
+  const inter = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  const off = (a) => a.x < -1 || a.y < -1 || a.x + a.w > 1921 || a.y + a.h > 1081;
+  for (let t = 0; t < dur; t += step) {
+    const s = await page.evaluate((t) => window.ENG_CHECK(t), t);
+    const T = s.texts;
+    for (const a of T) {
+      if (s.window && inter(a, s.window) > 4) issues.push([t, `${a.kind} "${a.text}" over the window`]);
+      if (off(a) && !a.bleed) issues.push([t, `${a.kind} "${a.text}" off the frame`]);
+    }
+    for (let i = 0; i < T.length; i++)
+      for (let j = i + 1; j < T.length; j++)
+        if (inter(T[i], T[j]) > 30 && !(T[i].kind === "list" && T[j].kind === "card") && !(T[j].kind === "list" && T[i].kind === "card")) issues.push([t, `${T[i].kind} "${T[i].text}" overlaps ${T[j].kind} "${T[j].text}"`]);
+    for (const c of s.callouts) {
+      for (const a of T) if (inter(a, c.box) > 4 || (c.tag && inter(a, c.tag) > 4)) issues.push([t, `${a.kind} "${a.text}" covers callout "${c.label}"`]);
+      if (off(c.box)) issues.push([t, `callout "${c.label}" runs off the frame`]);
+      if (s.badge && c.tag && inter(s.badge, c.tag) > 4) issues.push([t, `speed badge covers callout "${c.label}"`]);
+      if (c.tag && off(c.tag)) issues.push([t, `callout tag "${c.label}" runs off the frame`]);
+      align.push({ t: Math.round(t * 100) / 100, kind: "callout", label: c.label, rect: c.rect, refFrame: c.refFrame, frame: s.frame });
+    }
+    if (s.focus) align.push({ t: Math.round(t * 100) / 100, kind: "zoom", label: s.focus.name || "region", rect: s.focus.rect, refFrame: s.focus.refFrame, frame: s.frame });
+  }
+  // fold repeats into time ranges
+  const byMsg = new Map();
+  for (const [t, m] of issues) {
+    const r = byMsg.get(m) ?? [];
+    const last = r[r.length - 1];
+    if (last && t - last[1] <= step * 1.5) last[1] = t;
+    else r.push([t, t]);
+    byMsg.set(m, r);
+  }
+  mkdirSync(path("out/"), { recursive: true });
+  writeFileSync(path(`out/${OUT || "promo"}-align.json`), JSON.stringify({ dsf: 2, samples: align }));
+  console.log(`checked ${Math.ceil(dur / step)} moments: ${byMsg.size} layout problem(s)`);
+  for (const [m, r] of byMsg) console.log(`  ${r.map(([a, b]) => (a === b ? a.toFixed(1) : `${a.toFixed(1)}-${b.toFixed(1)}`)).join(", ")} s: ${m}`);
 } else if (mode === "frames") {
   mkdirSync(path(FRAMES), { recursive: true });
   mkdirSync(path("out/"), { recursive: true });

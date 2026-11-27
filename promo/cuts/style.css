@@ -47,7 +47,7 @@ body { font-family: "IBM Plex Mono", Consolas, monospace; text-transform: upperc
 .win-nav i { display: block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #9a9a93; }
 .win-omni { flex: 1; height: 30px; border-radius: 15px; background: #eeece7; display: flex; align-items: center; padding: 0 16px; font-size: 14px; color: #55554f; text-transform: none; }
 .win-ext { width: 20px; height: 20px; }
-.speed { position: absolute; right: 22px; top: 100px; z-index: 5; background: var(--ink); color: var(--paper); font-size: 18px; font-weight: 700; letter-spacing: 0.16em; padding: 8px 14px 6px; }
+.speed { position: absolute; left: 136px; top: 150px; background: var(--ink); color: var(--paper); font-size: 18px; font-weight: 700; letter-spacing: 0.16em; padding: 8px 14px 6px; }
 
 /* Callouts drawn over the footage */
 .callout { position: absolute; border: 4px solid var(--red); border-radius: 6px; transform-origin: 50% 50%; box-shadow: 0 0 0 9999px rgba(28, 28, 26, 0); }
@@ -55,8 +55,9 @@ body { font-family: "IBM Plex Mono", Consolas, monospace; text-transform: upperc
 .callout-tag.below { bottom: auto; top: 100%; margin: 8px 0 0; transform-origin: 0 0; }
 
 /* Subtitles on a strip of receipt paper */
-.subw { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); filter: drop-shadow(10px 10px 0 rgba(0, 0, 0, 0.25)); }
-.sub { max-width: 1500px; background: var(--paper); color: var(--ink); font-size: 30px; font-weight: 500; line-height: 1.38; letter-spacing: 0.01em; text-align: center; padding: 22px 40px 24px; -webkit-mask: var(--zz-both); mask: var(--zz-both); }
+/* in the text column, under the caption, never over the window */
+.subw { position: absolute; left: 136px; bottom: 40px; filter: drop-shadow(10px 10px 0 rgba(0, 0, 0, 0.25)); }
+.sub { width: 700px; background: var(--paper); color: var(--ink); font-size: 26px; font-weight: 500; line-height: 1.4; letter-spacing: 0; text-align: left; padding: 22px 32px 24px; -webkit-mask: var(--zz-both); mask: var(--zz-both); }
 
 /* Paper pieces used in cards */
 .sheetw { position: absolute; filter: drop-shadow(16px 16px 0 rgba(0, 0, 0, 0.22)); }

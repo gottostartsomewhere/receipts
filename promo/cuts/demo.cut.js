@@ -67,7 +67,7 @@
         lines(w[1] ? [w[0], w[1]] : [w[0]], { x: 136, y: 300, size: 170, at: t0, dur: 0.14, stagger: 0.04, color: w[4] });
         el("div", "kick", box, { position: "absolute", left: 144, top: 230, color: w[4], opacity: 0.75 }, `FEE ${i + 1} OF 6, ON TOP OF THE FOOD`);
         // a strip of bill with this fee printed again and again
-        const strip = el("div", "sheetw", box, { left: 1240, top: -40 });
+        const strip = el("div", "sheetw bleed", box, { left: 1240, top: -40 }); // runs off top and bottom on purpose
         let rows = "";
         for (let k = 0; k < 26; k++) rows += `<div class="row"><span>+ ${w[0].replace(/[.]/g, "")} ${w[1] ? w[1].replace(".", "") : "FEE"}</span><span>${w[5]}</span></div>`;
         el("div", "", strip, { width: 560, height: 1200, background: C.paper, color: C.red, padding: "24px 40px", fontSize: 25, lineHeight: 1.65 }, rows);
@@ -116,7 +116,7 @@
     const s = shot(a, a + 4.9, M.shop + 0.3, M.shop + 5.2);
     const z = s.cut(R("shop-charges").t + 0.2);
     cam(z, { focus: "shop-charges", zoom: 2.0, at: [1420, 470] }, 0.8);
-    callout(z + 0.6, b, "shop-charges", "FEES ON THIS ORDER", { pad: 6, below: true });
+    callout(z + 0.85, b, "shop-charges", "FEES ON THIS ORDER", { pad: 6, below: true }); // after the zoom lands
     caption(a + 0.05, b, ["THE FEES ARE", "RIGHT THERE."], { kicker: "A SHOP'S ORDER PAGE", sub: ["DELIVERY FEE, SERVICE FEE,", "PRINTED UNDER EACH ORDER."] });
   }
 
@@ -157,16 +157,16 @@
     bg(a, C.ink, { wipe: true });
     cam(a, "side", 0.5);
     const s0 = shot(a, a + 1.9, M.demo, M.demo + 1.9);
-    callout(a + 0.3, a + 1.4, "nano-ready", "GEMINI NANO: READY", { pad: 6 });
+    callout(a + 0.3, Math.min(a + 1.4, s0.cut(M["demo-read"]) - 0.15), "nano-ready", "GEMINI NANO: READY", { pad: 6 });
     // The read itself: about four minutes, shown fast with a speed badge
-    const READ = { x: 152, y: 250, w: 384, h: 460 };
+    const READ = { x: 152, y: 250, w: 384, h: 460, t: R("tally").t };
     shot(a + 1.9, b, M.demo + 1.9, M.demo + 40);
     cam(a + 2.4, { focus: READ, zoom: 1.55, at: [1420, 500] }, 0.8);
     caption(a + 0.05, b, ["GEMINI NANO", "READS IT."], { kicker: "ON THIS LAPTOP", sub: ["THE MODEL BUILT INTO CHROME.", "NO SERVER, NO UPLOAD."] });
 
     const a2 = A("extract"), b2 = B("extract");
     shot(a2, b2, M.demo + 40, M.demo + 95);
-    callout(a2 + 0.2, b2, { x: 152, y: 400, w: 384, h: 300 }, "ORDERS, DATES, TOTALS, FEES", { pad: 6 });
+    callout(a2 + 0.2, b2, { x: 152, y: 400, w: 384, h: 300, t: M.demo + 60 }, "ORDERS, DATES, TOTALS, FEES", { pad: 6 });
     caption(a2 + 0.05, b2, ["EVERY ORDER,", "DATE, TOTAL", "AND FEE."], { kicker: "PULLED OFF THE PAGE" });
 
     // Grounding: each order checked against the page
@@ -190,7 +190,7 @@
     const a4 = A("labels"), b4 = B("labels");
     const s4 = shot(a4, b4 - 0.6, M["demo-items"], M["demo-home"] - 0.3);
     cam(a4 + 0.1, { focus: "feed-items", zoom: 1.8, at: [1400, 500] }, 0.7);
-    callout(a4 + 0.9, b4, { x: 380, y: 425, w: 160, h: 300 }, "ON DEVICE", { pad: 4 });
+    callout(a4 + 1.5, b4, { x: 380, y: 425, w: 160, h: 300, t: R("feed-items").t }, "ON DEVICE", { pad: 4 });
     caption(a4 + 0.05, b4, ["MESSY NAMES,", "MADE READABLE."], { kicker: "LABELLED BY NANO", sub: ["EVERY LABEL STAMPED", "ON DEVICE."] });
     shot(b4 - 0.6, b4, M["demo-home"] - 0.3, M["demo-home"] + 0.3);
   }
@@ -210,16 +210,19 @@
 
     const a2 = A("receipt"), b2 = B("member");
     const s2 = shot(a2, b2, M.fees - 0.2, M["fees-end"]);
-    const z1 = s2.cut(R("fee-total").t);
+    // Zoom in where the page is still; pull back while it scrolls; zoom in again where it stops.
+    const ft = R("fee-total").t, mt = R("month-chart").t, bt = R("membership").t;
+    const z1 = s2.cut(ft);
     cam(Math.max(a2, z1 - 0.4), { focus: "fee-total", zoom: 2.1, at: [1400, 470] }, 0.6);
-    callout(z1 + 0.2, s2.cut(R("fee-total").t + 1.2), "fee-total", "FEES ON TOP", { pad: 6 });
-    const z2 = s2.cut(R("month-chart").t);
-    cam(z2 - 0.5, { focus: "month-chart", zoom: 1.9, at: [1400, 470] }, 0.6);
-    callout(z2 + 0.1, s2.cut(R("month-chart").t + 1.5), "month-chart", "BY MONTH", { pad: 6 });
-    const MEM = { x: 152, y: 400, w: 384, h: 300 };
-    const z3 = s2.cut(R("membership").t);
-    cam(z3 - 0.4, { focus: MEM, zoom: 1.7, at: [1400, 470] }, 0.6);
-    callout(z3 + 0.2, b2, MEM, "WOULD SWIGGY ONE PAY OFF?", { pad: 6 });
+    callout(z1 + 0.2, s2.cut(ft + 1.2), "fee-total", "FEES ON TOP", { pad: 6 });
+    cam(s2.cut(ft + 1.25), "side", 0.5);
+    cam(s2.cut(mt - 0.35), { focus: "month-chart", zoom: 1.9, at: [1400, 470] }, 0.5);
+    callout(s2.cut(mt) + 0.2, s2.cut(mt + 1.15), "month-chart", "BY MONTH", { pad: 6 });
+    cam(s2.cut(mt + 1.2), "side", 0.5);
+    const MEM = { x: 152, y: 400, w: 384, h: 300, t: bt };
+    const z3 = s2.cut(bt);
+    cam(s2.cut(bt - 0.35), { focus: MEM, zoom: 1.7, at: [1400, 470] }, 0.5);
+    callout(z3 + 0.25, b2, MEM, "WOULD SWIGGY ONE PAY OFF?", { pad: 6 });
     caption(a2 + 0.05, A("member"), ["BY APP.", "BY KIND.", "BY MONTH."], { kicker: "THE FEES RECEIPT" });
     caption(A("member") + 0.05, b2, ["WOULD A", "MEMBERSHIP", "PAY OFF?"], { kicker: "THE BREAK-EVEN" });
   }
@@ -328,8 +331,8 @@
       icon.src = "../../public/icons/icon128.png";
       const word = el("div", "h1", row, { fontSize: 150, letterSpacing: "0.14em", lineHeight: 1, color: C.paper }, "RECEIPTS");
       lines(["EVERY FEE YOU PAID ON TOP, FOUND ON YOUR LAPTOP."], { x: 0, y: 560, w: W, align: "center", size: 40, at: a + 0.6, color: C.paper });
-      lines(["GITHUB.COM/GOTTOSTARTSOMEWHERE/RECEIPTS"], { x: 0, y: 660, w: W, align: "center", size: 26, cls: "subt", at: a + 1.2, color: C.paper, style: { textTransform: "none", opacity: 0.75 } });
-      lines(["BUILT WITH GEMINI NANO AND FIREBASE AI LOGIC"], { x: 0, y: 940, w: W, align: "center", size: 20, cls: "kick", at: a + 1.6, color: C.paper, style: { opacity: 0.55 } });
+      lines(["GITHUB.COM/GOTTOSTARTSOMEWHERE/RECEIPTS"], { x: 0, y: 640, w: W, align: "center", size: 26, cls: "subt", at: a + 1.2, color: C.paper, style: { textTransform: "none", opacity: 0.75 } });
+      lines(["BUILT WITH GEMINI NANO AND FIREBASE AI LOGIC"], { x: 0, y: 720, w: W, align: "center", size: 20, cls: "kick", at: a + 1.6, color: C.paper, style: { opacity: 0.55 } });
       cue(a + 0.1, "stamp");
       add((tt) => {
         const p = E.out(seg(tt, a + 0.1, a + 0.3));

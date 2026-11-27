@@ -76,7 +76,8 @@ const ctx = await chromium.launchPersistentContext(dir, {
   colorScheme: "light",
   timezoneId: "Asia/Kolkata",
   ignoreDefaultArgs: true,
-  args: [`--user-data-dir=${dir}`, "--headless=new", "--remote-debugging-pipe", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--force-color-profile=srgb", "--disable-renderer-backgrounding", "--disable-background-timer-throttling", "about:blank"],
+  // --force-device-scale-factor: headless screencasts are drawn at 1x unless Chrome itself is 2x
+  args: [`--user-data-dir=${dir}`, "--headless=new", "--force-device-scale-factor=2", "--remote-debugging-pipe", "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--force-color-profile=srgb", "--disable-renderer-backgrounding", "--disable-background-timer-throttling", "about:blank"],
 });
 await ctx.addInitScript(cursorScript);
 const page = ctx.pages()[0] ?? (await ctx.newPage());

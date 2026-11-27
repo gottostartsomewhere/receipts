@@ -25,14 +25,15 @@
 
   // 1. The answer, in the real app (bars 2-3)
   bg(b(4), C.tomato);
-  cam(b(4) - 0.01, { focus: "fee-total", zoom: 2.5, at: [W / 2, 470] }, 0);
+  cam(b(4) - 0.01, { focus: "fee-total", zoom: 2.5, at: [W / 2, 470], zone: [0, W] }, 0);
   shot(b(4), b(8), M.fees + 0.6, M.fees + 1.2, { sounds: false });
   callout(b(4) + 0.15, b(8) - 0.1, "fee-total", "₹10,203 IN FEES. ON TOP.", { pad: 6, below: true });
   cue(b(4), "impact");
   cue(b(4) + 0.2, "ching");
-  cam(b(8), "side", 0.7);
+  cam(b(8), "side", 0.5);
   shot(b(8), b(12), M.fees + 1.2, M["fees-end"] - 1.5);
-  caption(b(8), b(12), ["EVERY FEE,", "FOUND."], { kicker: "RECEIPTS FOR CHROME", size: 110 });
+  // the caption comes in once the window has left the text column
+  caption(b(8) + 0.5, b(12), ["EVERY FEE,", "FOUND."], { kicker: "RECEIPTS FOR CHROME", size: 110 });
 
   // 2. Every kind of fee, half a beat each (bar 4)
   const FEES = [["PLATFORM", C.teal, C.paper], ["PACKING", C.mustard, C.ink], ["DELIVERY", C.indigo, C.paper], ["HANDLING", C.plum, C.paper], ["SMALL CART", C.moss, C.paper], ["CONVENIENCE", C.tomato, C.paper], ["LATE NIGHT", C.ink, C.paper], ["RAIN", C.teal, C.paper]];
@@ -56,13 +57,14 @@
   // 4. Gemini Nano reads them, on the laptop (bars 7-10)
   bg(b(24), C.ink, { wipe: true });
   cam(b(24), "side", 0.4);
-  shot(b(24), b(26), M.demo, M.demo + 2.2);
-  callout(b(24) + 0.1, b(26) - 0.1, "nano-ready", "GEMINI NANO: READY", { pad: 6 });
+  const s4 = shot(b(24), b(26), M.demo, M.demo + 2.2);
+  // off before the click swaps the screen
+  callout(b(24) + 0.1, Math.min(b(26), s4.cut(M["demo-read"])) - 0.15, "nano-ready", "GEMINI NANO: READY", { pad: 6 });
   shot(b(26), b(34), M.demo + 2.2, M["demo-items"]);
-  cam(b(26), { focus: { x: 152, y: 250, w: 384, h: 460 }, zoom: 1.55, at: [1420, 500] }, 0.6);
+  cam(b(26), { focus: { x: 152, y: 250, w: 384, h: 460, t: R("tally").t }, zoom: 1.55, at: [1420, 500] }, 0.6);
   shot(b(34), b(40), M["demo-items"], M["demo-home"] - 0.3);
   cam(b(34), { focus: "feed-items", zoom: 1.9, at: [1400, 520] }, 0.6);
-  callout(b(35), b(40) - 0.1, { x: 380, y: 425, w: 160, h: 300 }, "ON DEVICE", { pad: 4 });
+  callout(b(35) + 0.4, b(40) - 0.1, { x: 380, y: 425, w: 160, h: 300, t: R("feed-items").t }, "ON DEVICE", { pad: 4 });
   caption(b(24), b(32), ["GEMINI NANO", "READS THEM."], { kicker: "ON YOUR LAPTOP", size: 100, sub: ["THE MODEL BUILT INTO CHROME.", "NOTHING UPLOADED."] });
   caption(b(32), b(40), ["EVERY ITEM,", "UNDERSTOOD."], { kicker: "ON DEVICE", size: 100, sub: ["EVERY ORDER CHECKED", "AGAINST THE PAGE."] });
 

@@ -176,7 +176,11 @@ def main(name):
     if spec.get("duck"):
         act = np.abs(voL) + np.abs(voR)
         w = int(0.25 * SR)
-        act = np.convolve(act, np.ones(w) / w, mode="same")
+        # moving average via a running sum (a direct convolution this long takes minutes)
+        c = np.concatenate([[0.0], np.cumsum(act)])
+        idx = np.arange(n)
+        lo, hi = np.clip(idx - w // 2, 0, n), np.clip(idx + w // 2, 0, n)
+        act = (c[hi] - c[lo]) / w
         act = np.clip(act / (np.max(act) * 0.25 or 1), 0, 1)
         gain = 1 - 0.68 * act
         music_level = 0.5
