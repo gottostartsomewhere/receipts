@@ -214,7 +214,8 @@ export const WRAP_SYSTEM_PROMPT =
   "Tease, never shame. No profanity. Keep every line short enough to fit on a phone story card. " +
   "Use the person's currency, with its symbol (₹ or $). Do not invent numbers that are not in the facts, except for playful comparisons " +
   "(for example what the total could have bought), which must be clearly approximate. " +
-  "If the facts include fees_rounded, the roast must say how much went on fees on top of what they bought, and be on their side about it.";
+  "If the facts include fees_rounded, the roast must say how much went on fees on top of what they bought, and be on their side about it. " +
+  "Write plainly: no em dashes or en dashes; use commas or full stops instead.";
 
 const WRAP_SCHEMA = Schema.object({
   properties: {

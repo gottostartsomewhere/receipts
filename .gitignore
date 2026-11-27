@@ -14,3 +14,9 @@ promo/frames/
 promo/stills/
 promo/out/
 promo/footage/
+promo/.chrome-nano/
+promo/*-frames/
+promo/vo/tts/
+promo/vo/real/
+promo/vo/take/
+promo/vo/timing.js

@@ -23,6 +23,14 @@ function isRetryable(err: unknown): boolean {
   return /\b(429|500|503|504)\b|high demand|overloaded|unavailable|RESOURCE_EXHAUSTED|timed? ?out|abort/i.test(msg);
 }
 
+/** Models like long dashes; the cards read better with a comma. Applied to every string. */
+export function undash<T>(value: T): T {
+  if (typeof value === "string") return value.replace(/\s*[—–]\s*/g, ", ").replace(/,\s*,/g, ",") as T;
+  if (Array.isArray(value)) return value.map(undash) as T;
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, undash(v)])) as T;
+  return value;
+}
+
 /** The one request that reaches the cloud: the rounded facts the person has already seen. */
 export async function writeWrapped(payload: CloudPayload): Promise<Wrapped> {
   if (!firebaseConfigured) return localWrapped(payload);
@@ -34,7 +42,7 @@ export async function writeWrapped(payload: CloudPayload): Promise<Wrapped> {
     await recordCloud({ purpose: "Write your Wrapped", model, sent });
     try {
       const result = await wrapModel(model).generateContent(prompt);
-      const data = JSON.parse(result.response.text()) as Omit<Wrapped, "source">;
+      const data = undash(JSON.parse(result.response.text())) as Omit<Wrapped, "source">;
       return { ...data, cards: (data.cards ?? []).slice(0, 5), source: "in_cloud", model };
     } catch (err) {
       lastError = err;

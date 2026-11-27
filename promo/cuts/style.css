@@ -1,0 +1,65 @@
+@import url("../../node_modules/@fontsource/ibm-plex-mono/latin-400.css");
+@import url("../../node_modules/@fontsource/ibm-plex-mono/latin-500.css");
+@import url("../../node_modules/@fontsource/ibm-plex-mono/latin-700.css");
+@import url("../../node_modules/@fontsource/ibm-plex-mono/latin-ext-400.css");
+@import url("../../node_modules/@fontsource/ibm-plex-mono/latin-ext-700.css");
+
+:root {
+  --ink: #1c1c1a;
+  --paper: #fcfcfa;
+  --red: #c8452f;
+  --zz-bottom: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 20px 51% repeat-x,
+    linear-gradient(#000 0 0) top / 100% 51% no-repeat;
+  --zz-both: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 20px 51% repeat-x,
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / 20px 51% repeat-x;
+  --teeth-down: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 28px 100% repeat-x;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+body { font-family: "IBM Plex Mono", Consolas, monospace; text-transform: uppercase; -webkit-font-smoothing: antialiased; }
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
+.layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
+.teeth { position: absolute; left: 0; width: 1920px; height: 14px; -webkit-mask: var(--teeth-down); mask: var(--teeth-down); }
+
+/* Type */
+.h1 { font-weight: 700; letter-spacing: -0.02em; line-height: 1.02; }
+.kick { font-size: 24px; font-weight: 700; letter-spacing: 0.26em; }
+.subt { font-size: 27px; line-height: 1.5; }
+.line { display: block; overflow: hidden; padding-bottom: 0.05em; }
+.line > span { display: block; }
+
+/* Browser window */
+.wgroup { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.win { position: relative; background: #dedcd6; border-radius: 14px 14px 4px 4px; overflow: hidden; filter: drop-shadow(18px 18px 0 rgba(0, 0, 0, 0.24)); }
+.win-tabs { height: 40px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 14px 0 12px; }
+.win-tab { height: 32px; width: 230px; background: #fcfcfa; border-radius: 10px 10px 0 0; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 14px; color: var(--ink); text-transform: none; }
+.win-tab img { width: 16px; height: 16px; }
+.win-tab span { flex: 1; }
+.win-tab b { font-weight: 400; color: #77776f; }
+.win-ctl { display: flex; gap: 22px; padding-bottom: 12px; }
+.win-ctl i { display: block; width: 12px; height: 2px; background: #55554f; }
+.win-ctl i:nth-child(2) { height: 11px; background: none; border: 2px solid #55554f; margin-top: -5px; }
+.win-ctl i:nth-child(3) { position: relative; width: 12px; height: 12px; margin-top: -6px; background: none; }
+.win-ctl i:nth-child(3)::before, .win-ctl i:nth-child(3)::after { content: ""; position: absolute; left: -1px; top: 5px; width: 14px; height: 2px; background: #55554f; transform: rotate(45deg); }
+.win-ctl i:nth-child(3)::after { transform: rotate(-45deg); }
+.win-bar { height: 44px; background: #fcfcfa; display: flex; align-items: center; gap: 14px; padding: 0 14px; border-bottom: 1px solid #dedcd6; }
+.win-nav { display: flex; gap: 14px; }
+.win-nav i { display: block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #9a9a93; }
+.win-omni { flex: 1; height: 30px; border-radius: 15px; background: #eeece7; display: flex; align-items: center; padding: 0 16px; font-size: 14px; color: #55554f; text-transform: none; }
+.win-ext { width: 20px; height: 20px; }
+.speed { position: absolute; right: 22px; top: 100px; z-index: 5; background: var(--ink); color: var(--paper); font-size: 18px; font-weight: 700; letter-spacing: 0.16em; padding: 8px 14px 6px; }
+
+/* Callouts drawn over the footage */
+.callout { position: absolute; border: 4px solid var(--red); border-radius: 6px; transform-origin: 50% 50%; box-shadow: 0 0 0 9999px rgba(28, 28, 26, 0); }
+.callout-tag { position: absolute; left: -4px; bottom: 100%; margin-bottom: 8px; transform-origin: 0 100%; background: var(--red); color: var(--paper); font-size: 20px; font-weight: 700; letter-spacing: 0.12em; padding: 8px 14px 6px; white-space: nowrap; }
+.callout-tag.below { bottom: auto; top: 100%; margin: 8px 0 0; transform-origin: 0 0; }
+
+/* Subtitles on a strip of receipt paper */
+.subw { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); filter: drop-shadow(10px 10px 0 rgba(0, 0, 0, 0.25)); }
+.sub { max-width: 1500px; background: var(--paper); color: var(--ink); font-size: 30px; font-weight: 500; line-height: 1.38; letter-spacing: 0.01em; text-align: center; padding: 22px 40px 24px; -webkit-mask: var(--zz-both); mask: var(--zz-both); }
+
+/* Paper pieces used in cards */
+.sheetw { position: absolute; filter: drop-shadow(16px 16px 0 rgba(0, 0, 0, 0.22)); }
+.paper { background: var(--paper); color: var(--ink); -webkit-mask: var(--zz-both); mask: var(--zz-both); }
+.stamp { position: absolute; border: 5px solid currentColor; padding: 10px 22px 8px; font-weight: 700; letter-spacing: 0.12em; white-space: nowrap; }
+.row { display: flex; justify-content: space-between; gap: 18px; }
