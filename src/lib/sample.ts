@@ -12,6 +12,21 @@ function rng(seed: number) {
   };
 }
 
+/** Another app with its own fees: quick commerce (Blinkit) or tickets (BookMyShow). */
+interface ExtraShop {
+  shop: string;
+  /** Places shown as "Place (Shop)", like cinemas on BookMyShow; omitted means the shop itself. */
+  places?: string[];
+  orders: number;
+  products: { name: string; price: [number, number] }[];
+  /** How many different products go in one order. */
+  perOrder: [number, number];
+  category: Category;
+  /** Hours the orders land at; omitted when the shop doesn't show the time. */
+  hours?: number[];
+  fees: (subtotal: number, qty: number, rand: () => number) => Fee[];
+}
+
 interface Persona {
   currency: Currency;
   foodApps: string[];
@@ -20,11 +35,27 @@ interface Persona {
   products: { name: string; price: [number, number] }[];
   foodOrders: number;
   shopOrders: number;
+  extras?: ExtraShop[];
+}
+
+// Quick commerce charges a handling fee on most baskets, a small cart fee and delivery on
+// small ones, and a rain or surge fee now and then.
+function blinkitFees(subtotal: number, _qty: number, rand: () => number): Fee[] {
+  const fees: Fee[] = [{ label: "handling fee", amount: 2 + Math.round(rand() * 9) }];
+  if (subtotal < 150) fees.push({ label: "small cart fee", amount: 20 + Math.round(rand() * 15) });
+  if (subtotal < 200) fees.push({ label: "delivery fee", amount: 25 + Math.round(rand() * 5) });
+  if (rand() < 0.1) fees.push({ label: "rain fee", amount: 15 + Math.round(rand() * 15) });
+  return fees;
+}
+
+// Ticket apps charge a convenience fee per ticket, plus GST on that fee.
+function ticketFees(_subtotal: number, qty: number, rand: () => number): Fee[] {
+  return [{ label: "convenience fee", amount: qty * (24 + rand() * 12) * 1.18 }];
 }
 
 const CHENNAI: Persona = {
   currency: "INR",
-  foodApps: ["Swiggy", "Zomato"],
+  foodApps: ["Swiggy"],
   restaurants: [
     { name: "Hotel Junior Kuppanna", dishes: ["Chicken Biryani (Full)", "Mutton Chukka", "Parotta (2 pcs)"], price: [320, 640] },
     { name: "Thalappakatti", dishes: ["Dindigul Chicken Dum Biryani", "Chicken 65 Boneless", "Mutton Biryani"], price: [350, 780] },
@@ -54,8 +85,40 @@ const CHENNAI: Persona = {
     { name: "Wipro 9W LED Bulb (Pack of 4)", price: [399, 499] },
     { name: "Apple AirPods Pro (3rd generation)", price: [24900, 26900] },
   ],
-  foodOrders: 214,
+  foodOrders: 176,
   shopOrders: 41,
+  extras: [
+    {
+      shop: "Blinkit",
+      orders: 52,
+      products: [
+        { name: "Amul Taaza Toned Milk 1L", price: [68, 72] },
+        { name: "Britannia 100% Whole Wheat Bread 400g", price: [55, 60] },
+        { name: "Maggi 2-Minute Masala Noodles (Pack of 12)", price: [168, 180] },
+        { name: "Onion 1kg", price: [38, 55] },
+        { name: "Tomato (Local) 500g", price: [24, 40] },
+        { name: "Lay's India's Magic Masala 52g", price: [20, 20] },
+        { name: "Coca-Cola 750ml", price: [40, 45] },
+        { name: "Amul Butter 100g", price: [58, 62] },
+        { name: "Farm Fresh Eggs (Pack of 12)", price: [96, 110] },
+        { name: "Kurkure Masala Munch 90g", price: [20, 20] },
+        { name: "Aashirvaad Shudh Chakki Atta 5kg", price: [265, 295] },
+      ],
+      perOrder: [1, 4],
+      category: "groceries",
+      hours: [8, 9, 18, 19, 21, 22, 23, 23, 0, 1],
+      fees: blinkitFees,
+    },
+    {
+      shop: "BookMyShow",
+      places: ["PVR Grand Galada", "INOX Chennai Citi Centre", "Rohini Silver Screens", "AGS Cinemas OMR"],
+      orders: 9,
+      products: [{ name: "Movie tickets", price: [190, 420] }],
+      perOrder: [1, 1],
+      category: "entertainment",
+      fees: ticketFees,
+    },
+  ],
 };
 
 const SEATTLE: Persona = {
@@ -172,9 +235,32 @@ export function sampleOrders(id: PersonaId, year: number, untilMonth = 11): Orde
       date: day(),
       total: money(products.reduce((sum, x) => sum + between(x.price), 0)),
       currency: p.currency,
-      status: rand() < 0.06 ? "refunded" : "delivered",
+      // The splurge always arrives, so the year keeps its biggest-buy story.
+      status: rand() < 0.06 && !products.includes(splurge) ? "refunded" : "delivered",
       items: products.map((x) => ({ name: x.name, qty: 1 })),
     });
+  }
+  for (const x of p.extras ?? []) {
+    for (let i = 0; i < x.orders; i++) {
+      const kinds = x.perOrder[0] + Math.floor(rand() * (x.perOrder[1] - x.perOrder[0] + 1));
+      const items = Array.from({ length: kinds }, () => ({ product: pick(x.products), qty: 1 + Math.floor(rand() * 2) }));
+      const subtotal = items.reduce((n, it) => n + between(it.product.price) * it.qty, 0);
+      const qty = items.reduce((n, it) => n + it.qty, 0);
+      const fees = x.fees(subtotal, qty, rand).map((f) => ({ ...f, amount: money(f.amount) }));
+      orders.push({
+        id: `${x.shop.toLowerCase()}-${i}`,
+        store: "sample",
+        merchant: x.places ? `${pick(x.places)} (${x.shop})` : x.shop,
+        date: day(),
+        hour: x.hours ? pick(x.hours) : undefined,
+        total: money(subtotal + fees.reduce((n, f) => n + f.amount, 0)),
+        currency: p.currency,
+        status: "delivered",
+        items: items.map((it) => ({ name: it.product.name, qty: it.qty })),
+        fees,
+        knownCategory: x.category,
+      });
+    }
   }
   return orders.sort((a, b) => a.date.localeCompare(b.date));
 }

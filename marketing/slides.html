@@ -6,59 +6,209 @@
     <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-400.css" />
     <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-600.css" />
     <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-700.css" />
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-ext-400.css" />
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-ext-700.css" />
     <style>
-      /* Store screenshots, 1280x800. Flat background, one straight real screen, big left-aligned
-         headline, one accent colour. Pick a slide with ?n=1..5, or ?tile for the 440x280 tile. */
-      :root { --bg: #1c1c1a; --paper: #fcfcfa; --soft: #a3a39e; --accent: #e0533f; --mono: "IBM Plex Mono", Consolas, monospace; }
+      /* Store images. Each one is a flat colour field with a receipt printer at the top edge.
+         The real Receipts screen feeds out of it as paper, and a torn stub holds the number that
+         matters. Nothing is rotated; shadows are hard and flat.
+         ?n=1..5 for the 1280x800 screenshots, ?tile for 440x280, ?marquee for 1400x560. */
+      :root {
+        --ink: #1c1c1a;
+        --paper: #fcfcfa;
+        --mono: "IBM Plex Mono", Consolas, monospace;
+        --zz-both: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 16px 51% repeat-x,
+          conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / 16px 51% repeat-x;
+        --zz-bottom: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 16px 51% repeat-x,
+          linear-gradient(#000 0 0) top / 100% 51% no-repeat;
+      }
       * { box-sizing: border-box; margin: 0; }
-      html, body { width: 1280px; height: 800px; background: var(--bg); overflow: hidden; }
-      body { font-family: var(--mono); color: var(--paper); text-transform: uppercase; }
-      .slide { position: relative; width: 1280px; height: 800px; }
-      .copy { position: absolute; left: 80px; top: 0; bottom: 0; width: 600px; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
-      .kicker { font-size: 15px; letter-spacing: 0.22em; color: var(--soft); }
-      h1 { font-size: 56px; line-height: 1.08; font-weight: 700; letter-spacing: -0.01em; }
-      h1 em { font-style: normal; color: var(--accent); }
-      .sub { font-size: 19px; line-height: 1.5; color: var(--soft); max-width: 540px; }
-      .tag { align-self: flex-start; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent); border: 2px solid var(--accent); padding: 5px 10px; }
-      /* The real receipt, cropped and torn at the bottom like the app */
-      .shot { position: absolute; right: 90px; top: 50%; transform: translateY(-50%); width: 440px; max-height: 704px; overflow: hidden;
-        -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 16px 51% repeat-x, linear-gradient(#000 0 0) top / 100% 51% no-repeat;
-        filter: drop-shadow(0 24px 40px rgba(0,0,0,0.45)); }
-      .shot img { display: block; width: 440px; }
-      .cards { position: absolute; right: 70px; top: 50%; transform: translateY(-50%); display: flex; gap: 18px; }
-      .cards img { width: 196px; height: 349px; object-fit: cover; box-shadow: 0 18px 36px rgba(0,0,0,0.45); }
-      /* Tile */
-      .tile { width: 440px; height: 280px; padding: 34px 36px; display: flex; flex-direction: column; justify-content: space-between; }
-      .tile .row { display: flex; align-items: center; gap: 16px; }
-      .tile img { width: 64px; height: 64px; }
-      .tile .name { font-size: 30px; font-weight: 700; letter-spacing: 0.18em; }
-      .tile .line { font-size: 26px; font-weight: 700; line-height: 1.15; }
-      .tile .line em { font-style: normal; color: var(--accent); }
-      .tile .small { font-size: 12px; letter-spacing: 0.12em; color: var(--soft); }
+      html, body { overflow: hidden; }
+      body { font-family: var(--mono); text-transform: uppercase; -webkit-font-smoothing: antialiased; }
+      .slide { position: relative; width: 1280px; height: 800px; overflow: hidden; background: var(--field); color: var(--fg); }
+
+      /* Copy */
+      .copy { position: absolute; left: 72px; top: 118px; width: 560px; }
+      .kicker { font-size: 15px; font-weight: 700; letter-spacing: 0.24em; opacity: 0.72; }
+      .hero { margin-top: 18px; font-size: 132px; font-weight: 700; line-height: 0.95; letter-spacing: -0.03em; }
+      h1 { margin-top: 20px; font-size: var(--h, 62px); font-weight: 700; line-height: 1.02; letter-spacing: -0.015em; }
+      .hero + h1 { margin-top: 26px; }
+      .sub { margin-top: 28px; max-width: 500px; font-size: 18px; line-height: 1.55; opacity: 0.86; }
+      .brand { position: absolute; left: 72px; bottom: 54px; display: flex; align-items: center; gap: 14px; }
+      .brand img { width: 34px; height: 34px; display: block; }
+      .brand b { font-size: 17px; letter-spacing: 0.34em; }
+      .brand span { font-size: 12px; letter-spacing: 0.2em; opacity: 0.7; }
+
+      /* The printer: a dark body hanging from the top edge with a slot the paper comes out of */
+      .printer { position: absolute; top: -40px; height: 116px; background: var(--ink); border-radius: 0 0 18px 18px; z-index: 1; }
+      .printer .name { position: absolute; left: 30px; top: 58px; font-size: 11px; font-weight: 700; letter-spacing: 0.36em; color: #6f6f68; }
+      .printer .led { position: absolute; right: 30px; top: 60px; width: 9px; height: 9px; border-radius: 50%; background: var(--field); }
+      .slot { position: absolute; height: 12px; background: #050505; border-radius: 6px; z-index: 3; }
+
+      /* Paper and stubs, each with a hard flat shadow */
+      .sheet { position: absolute; z-index: 2; filter: drop-shadow(12px 12px 0 rgba(0, 0, 0, 0.2)); }
+      .paper { background: var(--paper); overflow: hidden; -webkit-mask: var(--zz-bottom); mask: var(--zz-bottom); padding-top: 16px; }
+      .paper img { display: block; }
+      .stub-wrap { position: absolute; z-index: 4; filter: drop-shadow(10px 10px 0 rgba(0, 0, 0, 0.24)); }
+      .stub { background: var(--paper); color: var(--ink); padding: 30px 28px 32px; -webkit-mask: var(--zz-both); mask: var(--zz-both); }
+      .stub small { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.2em; color: #5d5d57; }
+      .stub strong { display: block; margin-top: 12px; font-size: 50px; line-height: 1; font-weight: 700; letter-spacing: -0.02em; }
+      .stub .rule { margin-top: 16px; border-top: 2px dashed #b9b9b2; }
+      .stub em { display: block; margin-top: 12px; font-style: normal; font-size: 12px; letter-spacing: 0.14em; color: #5d5d57; }
+
+      /* Wrapped: a row of story cards cut from the real card images */
+      .ticket { overflow: hidden; background: var(--paper); -webkit-mask: var(--zz-bottom); mask: var(--zz-bottom); }
+      .ticket img { display: block; }
+      .row-copy { position: absolute; left: 72px; right: 72px; bottom: 50px; display: grid; grid-template-columns: 1fr 470px; align-items: end; gap: 40px; }
+      .row-copy h1 { margin-top: 14px; }
+      .row-copy .sub { margin-top: 0; }
+
+      /* Tile and marquee */
+      .tile { position: relative; width: 440px; height: 280px; overflow: hidden; background: var(--field); color: var(--fg); }
+      .mini { --zz-small: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 8px 51% repeat-x, linear-gradient(#000 0 0) top / 100% 51% no-repeat;
+        background: var(--paper); color: var(--ink); padding: 18px 14px 20px; -webkit-mask: var(--zz-small); mask: var(--zz-small); }
+      .mini small { display: block; font-size: 9px; font-weight: 700; letter-spacing: 0.16em; color: #5d5d57; }
+      .mini strong { display: block; margin-top: 6px; font-size: 27px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+      .mini p { display: flex; justify-content: space-between; gap: 6px; margin-top: 8px; font-size: 9px; letter-spacing: 0.04em; color: #3a3a36; }
+      .mini p:first-of-type { margin-top: 14px; padding-top: 10px; border-top: 1px dashed #b9b9b2; }
+      .mini p b { font-weight: 700; color: var(--ink); }
     </style>
   </head>
   <body>
     <div id="root"></div>
     <script>
-      const SLIDES = {
-        1: { kicker: "Receipts for Chrome", h: "Every <em>fee</em> you paid on top.", sub: "Platform, delivery, packing, convenience. By app, by kind and by month, read from your own orders.", tag: "Read on your laptop", img: "shots/fees.png", y: 0 },
-        2: { kicker: "Private by design", h: "Read on your laptop. <em>Not</em> uploaded.", sub: "Gemini Nano, built into Chrome, reads every order on your device. Only a dozen rounded totals you approve ever reach the cloud.", tag: "On device", img: "shots/reading.png", y: 205 },
-        3: { kicker: "Your year", h: "Your orders, <em>itemised</em>.", sub: "Amazon, Swiggy, Flipkart, Blinkit, BookMyShow, or any shop's order page. Saved in your browser, nowhere else.", tag: "Read on your laptop", img: "shots/home.png", y: 380 },
-        4: { kicker: "Your Wrapped", h: "Twelve cards. <em>Fourteen</em> facts sent.", sub: "Gemini writes the jokes from rounded totals. Cards with real restaurant names are drawn on your laptop.", tag: "You approve what leaves", cards: ["shots/card-6.png", "shots/card-5.png", "shots/card-7.png"] },
-        5: { kicker: "Ask your receipts", h: "Ask. Get an <em>exact</em> answer.", sub: "Gemini Nano reads the question on your laptop. The number is counted from your orders, so it is never made up.", tag: "On device", img: "shots/ask.png", y: 0 },
+      const FIELDS = {
+        tomato: { field: "#c8452f", fg: "#fcfcfa" },
+        teal: { field: "#2f6f6a", fg: "#fcfcfa" },
+        mustard: { field: "#e0a526", fg: "#1c1c1a" },
+        indigo: { field: "#3b3a8f", fg: "#fcfcfa" },
+        plum: { field: "#7a3b5c", fg: "#fcfcfa" },
       };
+
+      // img: a capture in shots/ (880px wide, 2x); y0..y1: the slice of it that is printed.
+      const SLIDES = {
+        1: {
+          colour: "tomato",
+          kicker: "Fees on top of what you bought",
+          hero: "₹10,203",
+          h: "Every platform, delivery and packing fee, found.",
+          hSize: 40,
+          sub: "By app, by kind and by month, read from your own order history.",
+          paper: { img: "shots/fees.png", y0: 118, y1: 1300, w: 496, x: 712 },
+          stub: { label: "Swiggy packing charges", value: "₹2,909", note: "Paid 122 times", x: 484, y: 528, w: 256 },
+        },
+        3: {
+          colour: "teal",
+          kicker: "Gemini Nano, built into Chrome",
+          h: "Read on your laptop. Not uploaded.",
+          sub: "Receipts opens your order pages with your own sign-in, and Gemini Nano reads them on your device. No account, no server.",
+          paper: { img: "shots/reading.png", y0: 410, y1: 1530, w: 496, x: 712 },
+          stub: { label: "Orders uploaded", value: "0", note: "275 read on this laptop", x: 484, y: 540, w: 256 },
+        },
+        4: {
+          colour: "plum",
+          kicker: "Ask your receipts",
+          h: "Ask anything. Get an exact answer.",
+          sub: "Gemini Nano reads the question on your laptop. The number is counted from your orders, so it is never made up.",
+          paper: { img: "shots/ask.png", y0: 0, y1: 1040, w: 496, x: 712 },
+          stub: { label: "Spent on biryani", value: "₹26,550", note: "Across 50 orders", x: 484, y: 548, w: 256 },
+        },
+        5: {
+          colour: "mustard",
+          kicker: "Private by design",
+          h: "14 rounded facts. That is all that leaves.",
+          sub: "No item list, no dates, no addresses, no exact amounts. You see the list and say yes before anything is sent.",
+          paper: { img: "shots/home.png", y0: 1000, y1: 2148, w: 496, x: 712 },
+          stub: { label: "Orders sent", value: "0", note: "One request, 14 facts", x: 484, y: 548, w: 256 },
+        },
+      };
+
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
       const p = new URLSearchParams(location.search);
       const root = document.getElementById("root");
+      const SLOT_Y = 64; // paper comes out here
+
+      function setColours(el, colour) {
+        el.style.setProperty("--field", FIELDS[colour].field);
+        el.style.setProperty("--fg", FIELDS[colour].fg);
+      }
+
+      function printer(x, w, name = "RECEIPTS") {
+        return `<div class="printer" style="left:${x - 40}px;width:${w + 80}px"><span class="name">${name}</span><span class="led"></span></div>
+          <div class="slot" style="left:${x - 12}px;width:${w + 24}px;top:${SLOT_Y - 6}px"></div>`;
+      }
+
+      function paperFrom({ img, y0, y1, w, x }) {
+        const scale = w / 880;
+        const h = Math.round((y1 - y0) * scale) + 16 + 22;
+        return `${printer(x, w)}<div class="sheet" style="left:${x}px;top:${SLOT_Y}px"><div class="paper" style="width:${w}px;height:${h}px">
+          <img src="${img}" alt="" style="width:${w}px;margin-top:${-Math.round(y0 * scale)}px"></div></div>`;
+      }
+
+      function stub({ label, value, note, x, y, w }) {
+        return `<div class="stub-wrap" style="left:${x}px;top:${y}px"><div class="stub" style="width:${w}px">
+          <small>${esc(label)}</small><strong>${esc(value)}</strong><div class="rule"></div><em>${esc(note)}</em></div></div>`;
+      }
+
+      const brand = `<div class="brand"><img src="../public/icons/icon128.png" alt=""><b>RECEIPTS</b><span>For Chrome</span></div>`;
+
+      // Wrapped: four story cards printed side by side. Crop each card to its paper.
+      function wrappedSlide() {
+        const cards = ["shots/card-6.png", "shots/card-2.png", "shots/card-7.png", "shots/card-12.png"];
+        const w = 272, gap = 16, x0 = 72;
+        const scale = w / 856; // card paper is x 112..968 of the 1080 image
+        const h = Math.round(1530 * scale); // y 200..1730
+        const total = cards.length * w + (cards.length - 1) * gap;
+        const tickets = cards
+          .map((src, i) => `<div class="sheet" style="left:${x0 + i * (w + gap)}px;top:${SLOT_Y}px"><div class="ticket" style="width:${w}px;height:${h}px">
+            <img src="${src}" alt="" style="width:${Math.round(1080 * scale)}px;margin-left:${-Math.round(112 * scale)}px;margin-top:${-Math.round(200 * scale)}px"></div></div>`)
+          .join("");
+        return `<div class="slide">${printer(x0, total, "RECEIPTS  WRAPPED")}${tickets}
+          <div class="row-copy"><div><p class="kicker">Your Wrapped</p><h1 style="--h:52px">Your year, as story cards.</h1></div>
+          <p class="sub">Gemini writes the jokes from 14 rounded totals you approve first. Cards with real names are drawn on your laptop and never sent.</p></div></div>`;
+      }
+
+      function tile() {
+        const x = 264, w = 144;
+        return `<div class="tile">
+          <div style="position:absolute;left:26px;top:30px;display:flex;align-items:center;gap:10px"><img src="../public/icons/icon128.png" alt="" style="width:30px;height:30px"><b style="font-size:15px;letter-spacing:.3em">RECEIPTS</b></div>
+          <div style="position:absolute;left:26px;bottom:30px;width:220px;font-size:27px;font-weight:700;line-height:1.05;letter-spacing:-.01em">Every fee you paid on top.</div>
+          <div class="printer" style="left:${x - 18}px;width:${w + 36}px;top:-30px;height:66px;border-radius:0 0 10px 10px"></div>
+          <div class="slot" style="left:${x - 6}px;width:${w + 12}px;top:26px;height:8px"></div>
+          <div class="sheet" style="left:${x}px;top:30px;filter:drop-shadow(7px 7px 0 rgba(0,0,0,.2))"><div class="mini" style="width:${w}px">
+            <small>Fees on top</small><strong>₹10,203</strong>
+            <p><span>PACKING</span><b>₹2,909</b></p><p><span>PLATFORM</span><b>₹2,625</b></p><p><span>DELIVERY</span><b>₹2,265</b></p><p><span>HANDLING</span><b>₹321</b></p></div></div>
+        </div>`;
+      }
+
+      function marquee() {
+        const s = SLIDES[1];
+        return `<div class="slide" style="width:1400px;height:560px">
+          <div class="copy" style="top:70px;width:640px"><p class="kicker">Receipts for Chrome</p><p class="hero" style="font-size:120px">₹10,203</p>
+          <h1 style="--h:40px">In fees on top of what you bought.</h1><p class="sub">Receipts finds every platform, delivery and packing fee in your order history.</p></div>
+          ${paperFrom({ ...s.paper, x: 830, y1: 920 })}</div>`;
+      }
+
       if (p.has("tile")) {
         document.documentElement.style.cssText = "width:440px;height:280px";
-        document.body.style.cssText = "width:440px;height:280px";
-        root.innerHTML = `<div class="tile"><div class="row"><img src="../public/icons/icon128.png" alt=""><span class="name">RECEIPTS</span></div><div class="line">Your year of orders.<br>Every <em>fee</em> found.</div><div class="small">Read on your laptop by Gemini Nano</div></div>`;
+        setColours(document.body, "tomato");
+        root.innerHTML = tile();
+      } else if (p.has("marquee")) {
+        document.documentElement.style.cssText = "width:1400px;height:560px";
+        setColours(document.body, "tomato");
+        root.innerHTML = marquee();
       } else {
-        const s = SLIDES[p.get("n") || 1];
-        const visual = s.cards
-          ? `<div class="cards">${s.cards.map((c) => `<img src="${c}" alt="">`).join("")}</div>`
-          : `<div class="shot"><img src="${s.img}" alt="" style="margin-top:-${s.y}px"></div>`;
-        root.innerHTML = `<div class="slide"><div class="copy"><p class="kicker">${s.kicker}</p><h1>${s.h}</h1><p class="sub">${s.sub}</p><span class="tag">${s.tag}</span></div>${visual}</div>`;
+        const n = Number(p.get("n") || 1);
+        if (n === 2) {
+          setColours(document.body, "indigo");
+          root.innerHTML = wrappedSlide();
+        } else {
+          const s = SLIDES[n];
+          setColours(document.body, s.colour);
+          root.innerHTML = `<div class="slide"><div class="copy"><p class="kicker">${esc(s.kicker)}</p>${s.hero ? `<p class="hero">${esc(s.hero)}</p>` : ""}
+            <h1 style="--h:${s.hSize || 62}px">${esc(s.h)}</h1><p class="sub">${esc(s.sub)}</p></div>
+            ${paperFrom(s.paper)}${stub(s.stub)}${brand}</div>`;
+        }
       }
     </script>
   </body>

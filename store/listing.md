@@ -1,14 +1,26 @@
 # Chrome Web Store listing: Receipts
 
-Paste these into the Developer Dashboard. Visibility for the hackathon: **Unlisted** (judges get the link).
+Paste these into the Developer Dashboard. Visibility for the hackathon: **Unlisted** (judges get the link). Switch to **Public** after judging.
+
+## Why these words
+
+The store's search leans hardest on the item name, then the summary, then the description, and Google suspends listings that repeat keywords. So the name says the two jobs in the words people type, and the shop names appear once each, in sentences.
+
+What already ranks (checked 2026-11-26): the space is "Spending Calculator for Swiggy and Zomato", "Spending Calculator for Amazon and Flipkart", "Flipkart & Amazon Expense Tracker", "Swiggy & Zomato Spending Tracker & Calculator", "Spending Calculator For Zepto & Blinkit", "Amazon Order History Exporter", and on the US side "Eats Tracker" and "Spend Tracker for Uber Eats" (delivery and service fee totals). So the head terms are **spending calculator**, **spending tracker**, **expense tracker**, **order history**, plus a shop name. Every one of them covers one or two apps and none of them finds fees across apps, which is the hook: **hidden fees**, **delivery fee**, **platform fee**.
+
+Brand names stay out of the item name (trademark review risk) and go in the summary and description, where they describe compatibility.
 
 ## Item name (max 75)
 
-Receipts: your year of orders and the fees on top
+Comes from `name` in public/manifest.json:
+
+Receipts: Spending Calculator & Hidden Fee Finder
 
 ## Summary (max 132)
 
-See what you spent online and every fee you paid on top. Read on your laptop by Gemini Nano; only a few rounded totals leave.
+Comes from `description` in public/manifest.json:
+
+Spending calculator for Amazon, Swiggy, Flipkart, Blinkit and more. Finds every delivery, platform and packing fee you paid on top.
 
 ## Category
 
@@ -20,28 +32,35 @@ English
 
 ## Description
 
-Receipts reads your order history on your own laptop and shows you your year: what you bought, what you spent, and every platform, delivery, packing and convenience fee you paid on top.
+How much did you spend on Amazon this year? On Swiggy? And how much of that was fees?
+
+Receipts is a spending calculator and hidden fee finder for your online orders. It reads your order history on Amazon, Swiggy, Flipkart, Blinkit, BookMyShow and more, right on your laptop, and shows you what you spent and every fee you paid on top: platform fee, delivery fee, packing charges, convenience fee, surge, small cart fee.
 
 YOUR YEAR, ITEMISED
-Tick the shops you use (Amazon.in, Amazon.com, Swiggy, Flipkart, Blinkit, BookMyShow and more) or click Receipts on any shop's order page. Receipts opens your order history with your existing sign-in and Gemini Nano, the AI model built into Chrome, reads it on your laptop.
+Tick the shops you use, or open any shop's order history page and click the Receipts icon. Receipts uses your existing sign-in, and Gemini Nano, the AI model built into Chrome, reads the orders on your laptop. You get your total spend, your orders by month, your top shops, your regulars and your biggest buy.
 
 EVERY FEE, FOUND
-A fees receipt shows each kind of fee per app and how often you paid it, your fees by month, and whether a membership like Swiggy One or DashPass would have paid for itself.
+The fees receipt lists each kind of fee per app and how often you paid it, your fees by month and the biggest single fee. It also works out whether a membership like Swiggy One or DashPass would have paid for itself, and how many orders it takes to break even.
 
 ASK YOUR RECEIPTS
-"How much did I pay in fees in March?" Gemini Nano understands the question on your laptop; the answer is counted from your orders, so it is exact.
+"How much did I pay in delivery fees in March?" "How much did I spend on biryani?" Gemini Nano reads the question on your laptop and the answer is counted from your own orders, so it is exact.
 
-YOUR WRAPPED
-Shareable story cards for your year. Gemini in the cloud writes the funny lines from about a dozen rounded totals that you see and approve first. Cards with real restaurant names are drawn on your laptop and never sent.
+YOUR SPENDING WRAPPED
+Shareable story cards for your year. Gemini in the cloud writes the funny lines from about a dozen rounded totals that you see and approve first. Cards with real restaurant and product names are drawn on your laptop and never sent.
 
 PRIVATE BY DESIGN
-- Orders, items, fees and questions are read on your laptop.
+- Your orders, items, fees and questions are read on your laptop, not on a server.
 - Only rounded totals you approve go to the cloud, and every request is listed under "What left this device".
-- No accounts, no analytics, no ads. Your saved year stays in your browser and "Forget this year" deletes it.
+- No account, no analytics, no ads. Your saved year stays in your browser and "Forget this year" deletes it.
 
-NO ACCOUNTS? Try the demo store or a sample year.
+WORKS WITH
+India: Amazon.in, Swiggy, Flipkart, Blinkit, BookMyShow. In beta: Myntra, AJIO, Tata CLiQ, JioMart, Uber.
+US: Amazon.com. In beta: Walmart, Target, DoorDash, Uber Eats, Instacart, eBay, Etsy, Uber.
+Any other shop: open its order history page and click the Receipts icon.
 
-Requires Chrome on desktop with Gemini Nano (Chrome 139+). Without Nano, the demo store and sample years still work.
+NO ORDERS HANDY? Try the built-in demo store or a sample year.
+
+Needs Chrome on a desktop with Gemini Nano (Chrome 139 or later). Without Nano, the demo store and sample years still work.
 
 ## Single purpose
 
@@ -77,6 +96,8 @@ Privacy policy URL: https://github.com/gottostartsomewhere/receipts/blob/main/PR
 
 ## Images to upload
 
-- Screenshots 1280x800: marketing/store-1.png ... store-5.png
+- Screenshots 1280x800, in this order: marketing/store-1.png ... store-5.png
 - Small promo tile 440x280: marketing/tile-440x280.png
+- Marquee 1400x560 (optional, used if the store ever features it): marketing/marquee-1400x560.png
 - Store icon 128x128: public/icons/icon128.png
+- Promo video (YouTube link field): the promo from promo/

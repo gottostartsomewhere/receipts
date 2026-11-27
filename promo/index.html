@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Receipts promo</title>
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-400.css" />
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-700.css" />
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-ext-400.css" />
+    <link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-ext-700.css" />
+    <style>
+      :root {
+        --ink: #1c1c1a;
+        --paper: #fcfcfa;
+        --red: #b8322a;
+        --zz-bottom: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 20px 51% repeat-x,
+          linear-gradient(#000 0 0) top / 100% 51% no-repeat;
+        --zz-both: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 20px 51% repeat-x,
+          conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) top / 20px 51% repeat-x;
+        --teeth-down: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 28px 100% repeat-x;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      body { font-family: "IBM Plex Mono", Consolas, monospace; text-transform: uppercase; -webkit-font-smoothing: antialiased; }
+      #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--ink); }
+      .scene { position: absolute; left: 0; top: 0; width: 1920px; overflow: hidden; }
+      .inner { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
+      .teeth { position: absolute; left: 0; width: 1920px; height: 14px; -webkit-mask: var(--teeth-down); mask: var(--teeth-down); }
+      .abs { position: absolute; }
+
+      /* Printer */
+      .asm { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+      .pbody { position: absolute; background: var(--ink); border-radius: 0 0 24px 24px; z-index: 1; }
+      .on-ink .pbody { background: #2a2a27; }
+      .pbody .nm { position: absolute; left: 40px; bottom: 44px; font-size: 14px; font-weight: 700; letter-spacing: 0.4em; color: #74746d; }
+      .pbody .led { position: absolute; right: 40px; bottom: 48px; width: 11px; height: 11px; border-radius: 50%; }
+      .slot { position: absolute; background: #050505; border-radius: 8px; z-index: 3; }
+      .sheet { position: absolute; z-index: 2; filter: drop-shadow(16px 16px 0 rgba(0, 0, 0, 0.22)); }
+      .paper { position: relative; background: var(--paper); overflow: hidden; -webkit-mask: var(--zz-bottom); mask: var(--zz-bottom); }
+      .pcontent { position: absolute; left: 0; top: 0; width: 100%; }
+      .slice { position: relative; overflow: hidden; }
+      .slice img { display: block; position: absolute; left: 0; }
+
+      /* The printed receipt in the opening */
+      .rc { padding: 34px 40px 0; color: var(--ink); font-size: 23px; line-height: 1.5; }
+      .rc h2 { text-align: center; font-size: 50px; font-weight: 700; letter-spacing: 0.42em; padding-left: 0.42em; line-height: 1.2; }
+      .rc .sub { text-align: center; color: #55554f; font-size: 22px; margin-top: 6px; }
+      .rc .dash { border-top: 3px dashed var(--ink); margin: 22px 0; }
+      .rc .kv { display: grid; grid-template-columns: 170px 1fr; color: #55554f; }
+      .rc .kv span + span { color: var(--ink); }
+      .rc .ln { display: flex; justify-content: space-between; white-space: pre; }
+      .rc .ln.order { color: var(--ink); }
+      .rc .ln.order b { font-weight: 700; }
+      .rc .ln.fee { color: var(--red); }
+      .rc .ln.colh { color: #55554f; font-size: 19px; letter-spacing: 0.12em; }
+
+      /* Type */
+      .kick { font-size: 24px; font-weight: 700; letter-spacing: 0.26em; }
+      .h1 { font-weight: 700; letter-spacing: -0.02em; line-height: 1.02; }
+      .line { display: block; overflow: hidden; padding-bottom: 0.04em; }
+      .line > span { display: block; }
+      .subt { font-size: 27px; line-height: 1.5; }
+
+      /* Stubs and stamps */
+      .stubw { position: absolute; z-index: 6; filter: drop-shadow(14px 14px 0 rgba(0, 0, 0, 0.25)); }
+      .stub { background: var(--paper); color: var(--ink); padding: 40px 36px 42px; -webkit-mask: var(--zz-both); mask: var(--zz-both); }
+      .stub small { display: block; font-size: 17px; font-weight: 700; letter-spacing: 0.2em; color: #5d5d57; }
+      .stub strong { display: block; margin-top: 14px; font-size: 76px; line-height: 1; font-weight: 700; letter-spacing: -0.02em; }
+      .stub .rule { margin-top: 20px; border-top: 3px dashed #b9b9b2; }
+      .stub em { display: block; margin-top: 16px; font-style: normal; font-size: 17px; letter-spacing: 0.14em; color: #5d5d57; }
+      .stamp { position: absolute; z-index: 7; border: 4px solid currentColor; padding: 8px 18px 6px; font-weight: 700; letter-spacing: 0.12em; white-space: nowrap; }
+      .mini-stamp { position: absolute; z-index: 5; border: 2px solid var(--red); color: var(--red); background: var(--paper); border-radius: 5px; font-weight: 700; letter-spacing: 0.1em; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
+      .cover { position: absolute; background: var(--paper); z-index: 4; }
+
+      .bars { display: flex; height: 70px; gap: 0; }
+      .bars i { display: block; height: 100%; background: var(--ink); }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <script src="promo.js"></script>
+  </body>
+</html>

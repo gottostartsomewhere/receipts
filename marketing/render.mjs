@@ -22,5 +22,6 @@ for (let n = 1; n <= 5; n++) {
 }
 await render("?tile", 440, 280, 1, "tile-440x280.png");
 await render("?tile", 440, 280, 2, "tile-440x280@2x.png");
+await render("?marquee", 1400, 560, 1, "marquee-1400x560.png");
 await browser.close();
 console.log("rendered");

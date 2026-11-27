@@ -1,6 +1,6 @@
 {
   "name": "receipts",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Your year of shopping, wrapped. Orders are read on your laptop with Gemini Nano; only a handful of totals ever reach the cloud.",
   "license": "Apache-2.0",

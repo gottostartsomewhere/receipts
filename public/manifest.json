@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Receipts",
-  "version": "0.2.0",
-  "description": "Your year of shopping, wrapped. Orders are read on your laptop by Gemini Nano; only a few totals ever leave it.",
+  "name": "Receipts: Spending Calculator & Hidden Fee Finder",
+  "short_name": "Receipts",
+  "version": "0.2.1",
+  "description": "Spending calculator for Amazon, Swiggy, Flipkart, Blinkit and more. Finds every delivery, platform and packing fee you paid on top.",
   "minimum_chrome_version": "139",
   "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
   "action": {
