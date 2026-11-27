@@ -1,14 +1,17 @@
 // The 3-minute demo for the judges: the real app (filmed by film.mjs, real Gemini Nano), with
 // zooms, callouts and subtitles, timed to the voiceover in promo/vo (window.VO).
 (() => {
-  const { W, C, E, seg, lerp, el, cue, bg, cam, footage, callout, caption, textLines, sub, card, REC } = ENG;
+  const { W, C, E, seg, lerp, el, cue, bg, cam, footage, callout, caption, textLines, sub, card, coldOpen, REC } = ENG;
   const M = REC.marks;
   const R = (name) => REC.rects.find((r) => r.name === name);
 
   // ---------- voiceover timeline ----------
   const GAP = { intro: 0.5, "fees-list": 0.35, drip: 0.6, tabs: 0.55, ground: 0.5, labels: 0.6, member: 0.6, ask: 0.6, cards: 0.45, ledger: 0.7, split2: 0.5 };
+  // Cold open first (112 BPM): four fees, the rush, the total on the drop; then the voice.
+  const BEAT = 60 / 112, cb = (n) => n * BEAT;
+  const TCO = cb(9);
   const L = {};
-  let t = 1.1;
+  let t = TCO + 0.25;
   window.VO.forEach((v, i) => {
     L[v.id] = { t0: t, t1: t + v.dur, text: v.text, i };
     cue(t, "vo", { file: v.file, start: v.start, dur: v.dur });
@@ -34,16 +37,29 @@
   }
   const RIGHT = [1400, 470];
 
+  // =========== 0. Cold open ===========
+  coldOpen({
+    slams: [
+      { t: cb(0), value: 14.99, shop: "SWIGGY", label: "PLATFORM FEE", bg: C.teal, fg: C.paper },
+      { t: cb(1), value: 28, shop: "SWIGGY", label: "PACKING CHARGES", bg: C.mustard, fg: C.ink },
+      { t: cb(2), value: 9, shop: "BLINKIT", label: "HANDLING FEE", bg: C.plum, fg: C.paper },
+      { t: cb(3), value: 70.8, shop: "BOOKMYSHOW", label: "CONVENIENCE FEE", bg: C.indigo, fg: C.paper },
+    ],
+    rush: { t0: cb(4), t1: cb(5.5) },
+    total: { t0: cb(5.5), t1: TCO },
+    totalValue: 10203,
+  });
+
   // =========== 1. Intro: what Receipts is ===========
   bg(0, C.ink);
   {
-    const a = 0, b = B("intro");
+    const a = TCO, b = B("intro");
     cam(0, "off", 0);
-    cam(0.25, "side", 0.8);
+    cam(a, "side", 0.8);
     const s = shot(a, a + 2.2, M.fees - 0.4, M.fees + 1.8);
     callout(s.cut(R("fee-total").t) + 0.6, b, "fee-total", "FEES ON TOP", { pad: 6 });
-    caption(0.4, b, ["RECEIPTS"], { size: 150, y: 320, kicker: "FOR CHROME", sub: ["A SPENDING CALCULATOR AND", "HIDDEN FEE FINDER. YOUR ORDERS", "ARE READ ON YOUR LAPTOP."] });
-    cue(0.25, "whoosh", { dur: 0.5 });
+    caption(a + 0.15, b, ["RECEIPTS"], { size: 150, y: 320, kicker: "FOR CHROME" });
+    cue(a, "whoosh", { dur: 0.5 });
   }
 
   // =========== 2. Fees nobody adds up ===========
@@ -117,7 +133,7 @@
     const z = s.cut(R("shop-charges").t + 0.2);
     cam(z, { focus: "shop-charges", zoom: 2.0, at: [1420, 470] }, 0.8);
     callout(z + 0.85, b, "shop-charges", "FEES ON THIS ORDER", { pad: 6, below: true }); // after the zoom lands
-    caption(a + 0.05, b, ["THE FEES ARE", "RIGHT THERE."], { kicker: "A SHOP'S ORDER PAGE", sub: ["DELIVERY FEE, SERVICE FEE,", "PRINTED UNDER EACH ORDER."] });
+    caption(a + 0.05, b, ["THE FEES ARE", "RIGHT THERE."], { kicker: "A SHOP'S ORDER PAGE" });
   }
 
   // =========== 5. Tick the shops, or any shop's page ===========
@@ -130,14 +146,14 @@
     cam(z, { focus: "shops", zoom: 1.7, at: [1420, 470] }, 0.7);
     callout(z + 0.5, s.cut(R("shops-all").t - 0.8), "shops", "YOUR SHOPS", { pad: 6, below: true });
     cam(s.cut(R("shops-all").t - 0.6), "side", 0.7);
-    caption(a + 0.05, b, ["TICK THE", "SHOPS YOU USE."], { color: C.ink, kicker: "YOUR SHOPS", sub: ["AMAZON, SWIGGY, FLIPKART,", "BLINKIT, BOOKMYSHOW AND MORE."] });
+    caption(a + 0.05, b, ["TICK THE", "SHOPS YOU USE."], { color: C.ink, kicker: "YOUR SHOPS" });
 
     const a2 = A("any"), b2 = B("any");
     const s2 = shot(a2, b2, M.start + 8.2, M["start-end"]);
     const z2 = s2.cut(R("any-shop").t + 0.1);
     cam(Math.max(a2, z2 - 0.3), { focus: "any-shop", zoom: 2.0, at: [1420, 470] }, 0.6);
     callout(z2 + 0.3, b2, "any-shop", "OR ANY ORDER PAGE", { pad: 6 });
-    caption(a2 + 0.05, b2, ["OR ANY SHOP'S", "ORDER PAGE."], { color: C.ink, kicker: "ANY OTHER SHOP", sub: ["OPEN ITS ORDER HISTORY AND", "CLICK THE RECEIPTS ICON."] });
+    caption(a2 + 0.05, b2, ["OR ANY SHOP'S", "ORDER PAGE."], { color: C.ink, kicker: "ANY OTHER SHOP" });
 
     // Background tabs, your own sign-in: printed as a receipt
     const a3 = A("tabs"), b3 = B("tabs");
@@ -162,7 +178,7 @@
     const READ = { x: 152, y: 250, w: 384, h: 460, t: R("tally").t };
     shot(a + 1.9, b, M.demo + 1.9, M.demo + 40);
     cam(a + 2.4, { focus: READ, zoom: 1.55, at: [1420, 500] }, 0.8);
-    caption(a + 0.05, b, ["GEMINI NANO", "READS IT."], { kicker: "ON THIS LAPTOP", sub: ["THE MODEL BUILT INTO CHROME.", "NO SERVER, NO UPLOAD."] });
+    caption(a + 0.05, b, ["GEMINI NANO", "READS IT."], { kicker: "ON THIS LAPTOP" });
 
     const a2 = A("extract"), b2 = B("extract");
     shot(a2, b2, M.demo + 40, M.demo + 95);
@@ -191,7 +207,7 @@
     const s4 = shot(a4, b4 - 0.6, M["demo-items"], M["demo-home"] - 0.3);
     cam(a4 + 0.1, { focus: "feed-items", zoom: 1.8, at: [1400, 500] }, 0.7);
     callout(a4 + 1.5, b4, { x: 380, y: 425, w: 160, h: 300, t: R("feed-items").t }, "ON DEVICE", { pad: 4 });
-    caption(a4 + 0.05, b4, ["MESSY NAMES,", "MADE READABLE."], { kicker: "LABELLED BY NANO", sub: ["EVERY LABEL STAMPED", "ON DEVICE."] });
+    caption(a4 + 0.05, b4, ["MESSY NAMES,", "MADE READABLE."], { kicker: "LABELLED BY NANO" });
     shot(b4 - 0.6, b4, M["demo-home"] - 0.3, M["demo-home"] + 0.3);
   }
 
@@ -240,7 +256,7 @@
     const s3 = shot(a + 5.6, b, ans - 0.3, ans - 0.3 + (b - a - 5.6));
     cam(a + 5.4, { focus: "answer-1", zoom: 1.9, at: [1400, 470] }, 0.6);
     callout(s3.cut(ans) + 0.1, b, "answer-1", "COUNTED FROM YOUR ORDERS", { pad: 6, below: true });
-    caption(a + 0.05, b, ["ASK. GET AN", "EXACT ANSWER."], { kicker: "ASK YOUR RECEIPTS", sub: ["NANO READS THE QUESTION.", "THE NUMBER IS COUNTED."] });
+    caption(a + 0.05, b, ["ASK. GET AN", "EXACT ANSWER."], { kicker: "ASK YOUR RECEIPTS" });
   }
 
   // =========== 9. The Wrapped: the only part that uses the cloud ===========
@@ -256,7 +272,7 @@
     const z = s2.cut(R("payload").t);
     cam(Math.max(a2, z - 0.3), { focus: "payload", zoom: 1.55, at: [1400, 480] }, 0.7);
     callout(z + 0.3, b2, "payload", "14 ROUNDED FACTS", { pad: 6 });
-    caption(a2 + 0.05, b2, ["YOU SEE EVERY", "FACT FIRST."], { kicker: "BEFORE ANYTHING LEAVES", sub: ["NO ITEM LIST. NO DATES.", "NO ADDRESSES."] });
+    caption(a2 + 0.05, b2, ["YOU SEE EVERY", "FACT FIRST."], { kicker: "BEFORE ANYTHING LEAVES" });
 
     const a3 = A("send"), b3 = B("send");
     shot(a3, a3 + 1.2, M.send - 0.8, M.send + 0.4);
@@ -290,7 +306,7 @@
     const z = s.cut(R("ledger-body").t);
     cam(Math.max(a + 0.4, z - 0.2), { focus: "ledger-body", zoom: 1.55, at: [1400, 470] }, 0.7);
     callout(z + 0.4, b, "ledger-body", "WHAT LEFT THIS DEVICE", { pad: 6 });
-    caption(a + 0.05, b, ["A RECEIPT FOR", "THAT TOO."], { kicker: "THE LEDGER", sub: ["EVERY CLOUD REQUEST,", "WORD FOR WORD."] });
+    caption(a + 0.05, b, ["A RECEIPT FOR", "THAT TOO."], { kicker: "THE LEDGER" });
   }
 
   // =========== 11. The split, on device and in the cloud ===========
@@ -343,6 +359,6 @@
   }
 
   cue(END - 0.01, "end");
-  window.CUT = { name: "demo", duration: END, music: { bpm: 112, energy: 0.55, duck: true } };
+  window.CUT = { name: "demo", duration: END, music: { bpm: 112, energy: 0.55, duck: true, drop: cb(5.5), outro: A("close") } };
   ENG_READY(END);
 })();

@@ -109,7 +109,7 @@
     const r = rectOf(target.focus);
     if (!r) throw new Error("no rect " + JSON.stringify(target.focus));
     const free = !!target.zone; // a cut with no text beside the window may use the whole frame
-    const [zx0, zx1] = target.zone ?? [TEXT_RIGHT + 20, W - 24];
+    const [zx0, zx1] = target.zone ?? [TEXT_RIGHT + 20, W - 60]; // room for a callout's pop
     const pad = 14;
     let Z = Math.min(target.zoom ?? 1.8, (zx1 - zx0) / (r.w + pad * 2), (H - 80) / (r.h + pad * 2));
     const px = target.at?.[0] ?? (zx0 + zx1) / 2;
@@ -203,7 +203,7 @@
       const q = E.in(seg(t, t1 - 0.18, t1));
       box.style.opacity = (Math.min(1, p * 1.6) * (1 - q)).toFixed(3);
       box.style.borderWidth = (4 / camS).toFixed(3) + "px";
-      box.style.transform = `scale(${lerp(1.08, 1, p).toFixed(4)})`;
+      box.style.transform = `scale(${lerp(1.04, 1, p).toFixed(4)})`;
       if (tag) tag.style.transform = `scale(${(1 / camS).toFixed(4)})`;
     });
   }
@@ -238,7 +238,18 @@
   function caption(t0, t1, lines, o = {}) {
     const x = o.x ?? 136, y = o.y ?? 330, color = o.color ?? C.paper;
     const size = o.w ? o.size ?? 86 : fit(lines, o.size ?? 86);
-    if (o.kicker) UPS.push(textLines(capLayer, [o.kicker], { x: x + 8, y: y - 52, size: fit([o.kicker], 24, 0.86), at: t0, out: t1 - 0.25, cls: "kick", color, style: { opacity: 0.75 } }));
+    if (o.kicker) {
+      // the kicker is a small paper label above the headline
+      const chip = el("div", "chip", capLayer, { left: x + 6, top: y - 62, fontSize: fit([o.kicker], 22, 0.78, TEXT_W - 40), display: "none" }, o.kicker);
+      UPS.push((t) => {
+        const on = t >= t0 && t < t1;
+        visible(chip, on);
+        if (!on) return;
+        const p = E.out(seg(t, t0, t0 + 0.25)), q = E.in(seg(t, t1 - 0.25, t1 - 0.05));
+        chip.style.opacity = (p * (1 - q)).toFixed(3);
+        chip.style.transform = `translate3d(${((1 - p) * -30).toFixed(1)}px,0,0)`;
+      });
+    }
     UPS.push(textLines(capLayer, lines, { x, y, size, at: t0 + 0.04, out: t1 - 0.25, color, w: o.w, align: o.align }));
     if (o.sub) UPS.push(textLines(capLayer, o.sub, { x: x + 6, y: y + lines.length * size * 1.04 + 34, size: fit(o.sub, o.subSize ?? 27), at: t0 + 0.25, out: t1 - 0.25, cls: "subt", stagger: 0.05, color, style: { opacity: 0.88 } }));
   }
@@ -305,6 +316,59 @@
     return box;
   }
 
+  // ---------- cold open: fees slam in on the beat, a rush of them, then the year's total ----------
+  const rupees = (n) => "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+  function coldOpen({ slams, rush, total, totalValue }) {
+    let run = 0;
+    slams.forEach((s, i) => {
+      run += s.value;
+      const sofar = run;
+      const t1 = i + 1 < slams.length ? slams[i + 1].t : rush.t0;
+      cue(s.t, "slap", { i });
+      card(s.t, t1, s.bg, ({ box, add, lines }) => {
+        const chip = el("div", "chip", box, { left: 144, top: 250, color: C.ink }, `${s.shop}&nbsp;&nbsp;${s.label}`);
+        const amt = "+" + rupees(s.value);
+        const size = Math.min(300, Math.floor((TEXT_RIGHT + 300) / (amt.length * 0.6)));
+        lines([amt], { x: 128, y: 330, size, at: s.t, dur: 0.1, color: s.fg });
+        const so = el("div", "kick", box, { position: "absolute", left: 144, top: 880, color: s.fg, fontSize: 26 }, `ON TOP SO FAR&nbsp;&nbsp;${rupees(Math.round(sofar * 100) / 100)}`);
+        add((tt) => {
+          const p = E.out(seg(tt, s.t, s.t + 0.12));
+          chip.style.transform = `translate3d(0,${((1 - p) * -24).toFixed(1)}px,0)`;
+          chip.style.opacity = p;
+          so.style.opacity = tt >= s.t + 0.05 ? 0.8 : 0;
+        });
+      });
+    });
+    // the rush: fee lines printing faster than you can read, the running total spinning up
+    card(rush.t0, rush.t1, C.ink, ({ box, add }) => {
+      const strip = el("div", "sheetw bleed", box, { left: 1180, top: -30 });
+      const paper = el("div", "", strip, { width: 600, height: 1160, background: C.paper, padding: "20px 40px", fontSize: 25, lineHeight: 1.6, overflow: "hidden" });
+      const POOL = [["SWIGGY PLATFORM FEE", "14.99"], ["PACKING CHARGES", "28.00"], ["DELIVERY FEE", "35.00"], ["HANDLING FEE", "9.00"], ["SMALL CART FEE", "25.00"], ["CONVENIENCE FEE", "70.80"], ["LATE NIGHT FEE", "22.00"], ["RAIN FEE", "15.00"], ["PLATFORM FEE", "14.99"], ["PACKING CHARGES", "32.00"]];
+      const N = 26;
+      const rows = Array.from({ length: N }, (_, k) => el("div", "row", paper, { color: C.red, opacity: 0 }, `<span>+ ${POOL[k % POOL.length][0]}</span><span>${POOL[k % POOL.length][1]}</span>`));
+      const num = el("div", "h1", box, { position: "absolute", left: 128, top: 330, fontSize: 250, color: C.paper });
+      el("div", "chip", box, { left: 144, top: 250, color: C.ink }, "ADDING IT UP");
+      const from = run, d = rush.t1 - rush.t0;
+      rows.forEach((_, k) => cue(rush.t0 + (k / N) * d * 0.95, "key", { v: 0.35 }));
+      add((tt) => {
+        const p = seg(tt, rush.t0, rush.t1);
+        rows.forEach((r, k) => (r.style.opacity = p * 0.95 >= k / N ? 1 : 0));
+        num.textContent = rupees(Math.round(from + (totalValue - from) * Math.pow(p, 2.2)));
+      });
+    });
+    // the drop: the year's total
+    card(total.t0, total.t1, C.ink, ({ box, add, lines }) => {
+      el("div", "chip", box, { left: 144, top: 250, color: C.ink }, "ONE YEAR OF FEES, ON TOP");
+      const big = el("div", "h1", box, { position: "absolute", left: 128, top: 330, fontSize: 300, color: C.paper, transformOrigin: "0 60%" }, rupees(totalValue));
+      lines(["NOBODY ADDS THEM UP."], { x: 140, y: 680, size: 72, at: total.t0 + (total.t1 - total.t0) * 0.25, color: C.red });
+      lines(["RECEIPTS DOES."], { x: 140, y: 770, size: 72, at: total.t0 + (total.t1 - total.t0) * 0.55, color: C.paper });
+      add((tt) => {
+        const p = E.out(seg(tt, total.t0, total.t0 + 0.16));
+        big.style.transform = `scale(${lerp(1.25, 1, p).toFixed(4)})`;
+      });
+    });
+  }
+
   // ---------- render ----------
   async function renderFrame(t) {
     for (const u of UPS) u(t);
@@ -346,6 +410,11 @@
       return parts;
     };
     if (!out.cover) for (const p of lineBoxes(capLayer)) out.texts.push({ kind: "caption", ...p });
+    const chips = (root, kind) => {
+      for (const ch of root.querySelectorAll(".chip")) if (shown(ch)) out.texts.push({ kind, ...box(ch.getBoundingClientRect()), text: ch.textContent.slice(0, 40) });
+    };
+    if (!out.cover) chips(capLayer, "kicker");
+    for (const c of cardLayer.children) if (shown(c)) chips(c, "chip");
     for (const c of cardLayer.children) if (shown(c)) {
       for (const p of lineBoxes(c)) out.texts.push({ kind: "card", ...p });
       for (const s of c.querySelectorAll(".sheetw")) if (shown(s)) out.texts.push({ kind: "list", bleed: s.classList.contains("bleed"), ...box(s.getBoundingClientRect()), text: s.textContent.slice(0, 40) });
@@ -367,7 +436,7 @@
   }
   window.ENG_CHECK = check;
 
-  window.ENG = { W, H, K, CHROME, C, E, clamp, seg, lerp, el, img, cue, CUES, UPS, bg, cam, footage, callout, caption, textLines, sub, card, rectOf, REC };
+  window.ENG = { W, H, K, CHROME, C, E, clamp, seg, lerp, el, img, cue, CUES, UPS, bg, cam, footage, callout, caption, textLines, sub, card, coldOpen, rectOf, REC };
   window.ENG_READY = async (duration) => {
     window.CUES = CUES;
     window.DURATION = duration;

@@ -13,7 +13,9 @@ Two cuts of the real app, made from code so they can be re-made after any change
 4. **Frames**: `node promo/render.mjs frames 5 --page cuts/promo.html --out promo` (and `cuts/demo.html --out demo`). The cuts are deterministic HTML (`cuts/engine.js` plus `promo.cut.js` / `demo.cut.js`): zooms, callouts, captions and subtitles over the footage.
 5. **Check the overlays** before rendering: `node promo/render.mjs check --page cuts/demo.html --out demo` reports, every 0.1 s, any caption, subtitle or printed list touching the browser window, another text block or the frame edge, and any callout covered by text or running off the frame. Then `python promo/check_align.py demo` compares the pixels under every callout and zoom with the frame its position was measured on: "MOVED" means the page shifted under it, "content" means the app updated in place (typing, a list filling, cards swiping).
 6. **Sound**: `python promo/mix.py promo` (and `demo`) synthesises the music and effects from the cut's own cue list and mixes in the voiceover.
-7. **Encode**: ffmpeg, frames plus sound to H.264/AAC.
+7. **Encode**: ffmpeg, frames plus sound to H.264/AAC, with `-af loudnorm=I=-14:TP=-1.5:LRA=11` so both land at YouTube's loudness.
+
+The music is synthesised in `synth.py` (scipy filters, supersaw stabs and pads, 808-style hats, a filtered pluck with delay, risers, impacts, sidechain, gentle master). Each cut opens cold: fees slam in on the beat, rush, and the year's total lands on the drop.
 
 ## Gemini Nano in the filming browser
 
