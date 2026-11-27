@@ -4,7 +4,9 @@
 // Art direction: a thermal receipt printer feeds the real Receipts screens out as paper over
 // flat colour fields. Nothing rotates; shadows are hard and flat.
 (() => {
-  const W = 1920, H = 1080, DUR = 48, WIPE = 0.38, SLOT = 112;
+  const W = 1920, H = 1080, WIPE = 0.38, SLOT = 112;
+  let DUR = 48;
+  const PENDING = [];
   const C = {
     ink: "#1c1c1a", paper: "#fcfcfa", red: "#b8322a", bright: "#e0533f", grey: "#55554f",
     tomato: "#c8452f", teal: "#2f6f6a", mustard: "#e0a526", indigo: "#3b3a8f", plum: "#7a3b5c", moss: "#4f6b3a",
@@ -278,7 +280,10 @@
       const paper = el("div", "rc", strip, { width: 600, height: 1300, background: C.paper, padding: "20px 44px", fontSize: 26, lineHeight: 1.62 }, lines);
       s.ups.push((t) => (paper.style.transform = `translate3d(0,${(-seg(t, at, at + 0.5) * 84).toFixed(1)}px,0)`));
       el("div", "kick", s.inner, { position: "absolute", left: 146, top: 150, fontSize: 24, opacity: 0.75 }, `EVERY KIND OF FEE   ${i + 1}/8`);
-      s.ups.push(textLines(s.inner, word, { x: 136, y: 250, size: 196, at, dur: 0.12, stagger: 0.03 }));
+      // Size the word to the space left of the strip (monospace: 0.6em per letter).
+      const longest = Math.max(...word.map((w) => w.length));
+      const size = Math.min(196, Math.floor(980 / (longest * 0.6)));
+      s.ups.push(textLines(s.inner, word, { x: 136, y: 250 + (196 - size) * 0.6, size, at, dur: 0.12, stagger: 0.03 }));
       s.ups.push(textLines(s.inner, [`${times} <b style="font-weight:700">${amt}</b>`], { x: 146, y: 760, size: 56, at: at + 0.08, dur: 0.14, cls: "subt" }));
     });
   }
@@ -299,163 +304,77 @@
     s.ups.push(textLines(s.inner, ["A CHROME EXTENSION. YOUR ORDERS ARE READ ON YOUR LAPTOP BY GEMINI NANO."], { x: 0, y: 690, w: W, align: "center", size: 26, at: 19.5, cls: "subt", style: { color: C.grey } }));
   }
 
-  // Shared layout for the product scenes: copy on the left, printer on the right.
-  const PX = 1160, PW = 620;
-
   // =====================================================================================
-  // E. 21-26 s. Gemini Nano reads on the laptop.
+  // LIVE. The real app, used: shops ticked, Nano reading, the fees receipt, Ask, approving
+  // what leaves, the Wrapped, the ledger. Footage from footage.mjs, inside a browser window.
   // =====================================================================================
+  const F = window.FOOTAGE;
+  const TL = 21;
+  const TJ = TL + F.duration;
   {
-    const s = addScene(21, C.teal, C.paper);
-    s.ups.push(textLines(s.inner, ["GEMINI NANO, BUILT INTO CHROME"], { x: 144, y: 236, size: 24, at: 21.05, cls: "kick", style: { opacity: 0.8 } }));
-    s.ups.push(textLines(s.inner, ["READ ON YOUR", "LAPTOP.", "NOT UPLOADED."], { x: 136, y: 286, size: 108, at: 21.15, stagger: 0.1 }));
-    s.ups.push(textLines(s.inner, ["RECEIPTS OPENS YOUR ORDER", "PAGES WITH YOUR OWN SIGN-IN.", "GEMINI NANO READS THEM", "ON YOUR DEVICE."], { x: 142, y: 670, size: 27, at: 22.3, cls: "subt", stagger: 0.05, style: { opacity: 0.88 } }));
-    const pr = makePrinter(s.inner, { x: PX, w: PW, led: C.teal });
-    const sl = slices(pr.content, PW, [{ src: "../marketing/shots/reading.png", y0: 400, y1: 1560 }]);
-    const ky = (y) => sl.at[0] + (y - 400) * sl.s; // paper y for an image y
-    const STAMPS = [[415, 805, 559, 838], [371, 909, 515, 942], [487, 1013, 631, 1046], [357, 1117, 501, 1150], [415, 1221, 559, 1254], [415, 1325, 559, 1358]];
-    const keys = [{ t: 21.3, L: 0 }, { t: 22.2, L: ky(748) }];
-    cue(21.3, "print", { dur: 0.9, r0: 10, r1: 10 });
-    STAMPS.forEach((rect, i) => {
-      const t0 = 22.55 + i * 0.34;
-      keys.push({ t: t0, L: ky(752 + 104 * i) }, { t: t0 + 0.14, L: ky(856 + 104 * i) });
-      cue(t0, "print", { dur: 0.14, r0: 30, r1: 30 });
-      s.ups.push(deviceStamp(pr.content, sl.s, rect, sl.at[0] - 400 * sl.s, t0 + 0.2));
+    const STEPS = [
+      { key: "tick", bg: C.teal, h: ["TICK THE SHOPS", "YOU USE."], sub: ["AMAZON, SWIGGY, FLIPKART, BLINKIT,", "BOOKMYSHOW, OR ANY ORDER PAGE."] },
+      { key: "read", bg: C.ink, h: ["GEMINI NANO", "READS THEM."], sub: ["ON YOUR LAPTOP, WITH YOUR OWN", "SIGN-IN. NOTHING IS UPLOADED."] },
+      { key: "fees", bg: C.tomato, h: ["EVERY FEE,", "FOUND."], sub: ["BY APP, BY KIND, BY MONTH. AND", "WHETHER A MEMBERSHIP PAYS OFF."] },
+      { key: "ask", bg: C.plum, h: ["ASK. GET AN", "EXACT ANSWER."], sub: ["NANO READS THE QUESTION. THE", "NUMBER IS COUNTED FROM YOUR ORDERS."] },
+      { key: "approve", bg: C.mustard, fg: C.ink, h: ["YOU APPROVE", "WHAT LEAVES."], sub: ["14 ROUNDED FACTS. NO ITEM LIST,", "NO DATES, NO ADDRESSES."] },
+      { key: "wrapped", bg: C.indigo, h: ["YOUR YEAR,", "WRAPPED."], sub: ["GEMINI WRITES THE JOKES. CARDS WITH", "REAL NAMES ARE DRAWN ON YOUR LAPTOP."] },
+      { key: "ledger", bg: C.moss, h: ["A RECEIPT FOR", "THAT TOO."], sub: ["EVERY REQUEST THAT LEFT THIS", "DEVICE, WORD FOR WORD."] },
+    ].map((st, i, all) => ({ ...st, i, t: TL + (i === 0 ? 0 : F.steps[st.key]) }));
+    STEPS.forEach((st, i) => (st.end = i + 1 < STEPS.length ? STEPS[i + 1].t : TJ));
+
+    const s = addScene(TL, STEPS[0].bg, C.paper);
+    // Left: step number, headline and one line of what it means
+    STEPS.forEach((st, i) => {
+      const at = i === 0 ? TL + 0.15 : st.t + 0.04;
+      const out = i + 1 < STEPS.length ? st.end - 0.2 : null;
+      const color = st.fg || C.paper;
+      s.ups.push(textLines(s.inner, [`${String(i + 1).padStart(2, "0")} / 07`], { x: 144, y: 300, size: 24, at, out, cls: "kick", dur: 0.25, style: { color, opacity: 0.75 } }));
+      s.ups.push(textLines(s.inner, st.h, { x: 136, y: 346, size: 86, at, out, stagger: 0.07, style: { color } }));
+      s.ups.push(textLines(s.inner, st.sub, { x: 142, y: 560, size: 27, at: at + 0.25, out, cls: "subt", stagger: 0.05, style: { color, opacity: 0.88 } }));
+      if (i > 0) cue(st.t, "slap", { i: i + 2 });
     });
-    keys.push({ t: 24.75, L: ky(1380) }, { t: 25.0, L: sl.end + 26 });
-    cue(24.75, "print", { dur: 0.25, r0: 20, r1: 20 });
     s.ups.push((t) => {
-      let L = 0;
-      for (let i = 0; i < keys.length - 1; i++) if (t >= keys[i].t) L = lerp(keys[i].L, keys[i + 1].L, E.inOut(seg(t, keys[i].t, keys[i + 1].t)));
-      if (t >= keys[keys.length - 1].t) L = keys[keys.length - 1].L;
-      pr.len(L);
+      let cur = STEPS[0];
+      for (const st of STEPS) if (t >= st.t) cur = st;
+      s.inner.style.background = cur.bg;
     });
-    s.ups.push(makeStub(s.inner, { label: "ORDERS UPLOADED", value: "0", note: "275 READ ON THIS LAPTOP", x: 816, y: 716, at: 25.15 }));
-  }
 
-  // =====================================================================================
-  // F. 26-31 s. The fees receipt.
-  // =====================================================================================
-  {
-    const s = addScene(26, C.tomato, C.paper);
-    s.ups.push(textLines(s.inner, ["THE FEES RECEIPT"], { x: 144, y: 236, size: 24, at: 26.05, cls: "kick", out: 29.3, style: { opacity: 0.8 } }));
-    s.ups.push(textLines(s.inner, ["EVERY FEE.", "BY APP, BY KIND,", "BY MONTH."], { x: 136, y: 286, size: 100, at: 26.15, stagger: 0.1, out: 29.3 }));
-    s.ups.push(textLines(s.inner, ["PLATFORM, DELIVERY, PACKING,", "HANDLING, CONVENIENCE. EACH ONE", "PRINTED ON YOUR OWN ORDERS."], { x: 142, y: 640, size: 27, at: 27.0, cls: "subt", stagger: 0.05, out: 29.3, style: { opacity: 0.88 } }));
-    s.ups.push(textLines(s.inner, ["MEMBERSHIPS"], { x: 144, y: 236, size: 24, at: 29.6, cls: "kick", style: { opacity: 0.8 } }));
-    s.ups.push(textLines(s.inner, ["WOULD SWIGGY", "ONE HAVE PAID", "FOR ITSELF?"], { x: 136, y: 286, size: 100, at: 29.65, stagger: 0.1 }));
-    const pr = makePrinter(s.inner, { x: PX, w: PW, led: C.tomato });
-    const sl = slices(pr.content, PW, [
-      { src: "../marketing/shots/fees.png", y0: 118, y1: 1330 },
-      { src: "../marketing/shots/fees-member.png", y0: 20, y1: 1120 },
-    ]);
-    const full = sl.end + 30;
-    cue(26.25, "print", { dur: 1.3, r0: 11, r1: 11 });
-    cue(27.6, "print", { dur: 2.7, r0: 9, r1: 9 });
+    // Right: a browser window with the footage in it
+    const WW = F.width, WH = F.height + 84;
+    const WX = W - 110 - WW, WY = Math.round((H - WH) / 2);
+    const win = el("div", "win", s.inner, { left: WX, top: WY, width: WW, height: WH });
+    win.innerHTML = `<div class="win-tabs"><div class="win-tab"><img src="../public/icons/icon32.png" alt=""><span>Receipts</span><b>&times;</b></div><div class="win-ctl"><i></i><i></i><i></i></div></div>
+      <div class="win-bar"><span class="win-nav"><i></i><i></i><i></i></span><div class="win-omni">chrome-extension://receipts/app.html</div><img class="win-ext" src="../public/icons/icon32.png" alt=""></div>`;
+    const view = img(win, "footage/frames/00001.jpg", { display: "block", width: WW, height: F.height });
+    let shown = 1;
     s.ups.push((t) => {
-      const L = t < 27.6 ? lerp(0, 960, E.inOut(seg(t, 26.25, 27.55))) : lerp(960, full, E.inOut(seg(t, 27.6, 30.3)));
-      pr.len(L);
-      pr.cam(Math.max(0, SLOT + L - 1040));
+      const p = E.out(seg(t, TL - 0.2, TL + 0.45));
+      win.style.transform = `translate3d(0,${((1 - p) * 1000).toFixed(1)}px,0)`;
+      const k = Math.max(1, Math.min(F.frames, Math.floor((t - TL) * F.fps) + 1));
+      if (k !== shown) {
+        shown = k;
+        view.src = `footage/frames/${String(k).padStart(5, "0")}.jpg`;
+        PENDING.push(view.decode().catch(() => {}));
+      }
     });
-    s.ups.push(makeStub(s.inner, { label: "SWIGGY ONE", value: "₹2,660", note: "WORTH IT UNDER THIS A YEAR", x: 816, y: 700, at: 30.3 }));
+
+    // Sounds of the app being used
+    for (const e of F.events) {
+      const t = TL + e.t;
+      if (e.type === "click") cue(t, "click");
+      else if (e.type === "key") cue(t, "key", { v: 0.55 });
+      else if (e.type === "swipe") cue(t, "whoosh", { dur: 0.3 });
+      else if (e.type === "feed") cue(TL + e.from, "print", { dur: e.to - e.from, r0: 3.5, r1: 3.5 });
+    }
   }
 
   // =====================================================================================
-  // G. 31-36 s. Ask your receipts.
+  // END. The last receipt tears off; end card.
   // =====================================================================================
+  DUR = TJ + 4.2;
   {
-    const s = addScene(31, C.plum, C.paper);
-    s.ups.push(textLines(s.inner, ["ASK YOUR RECEIPTS"], { x: 144, y: 236, size: 24, at: 31.05, cls: "kick", style: { opacity: 0.8 } }));
-    s.ups.push(textLines(s.inner, ["ASK ANYTHING.", "GET AN EXACT", "ANSWER."], { x: 136, y: 286, size: 108, at: 31.15, stagger: 0.1 }));
-    s.ups.push(textLines(s.inner, ["GEMINI NANO READS THE", "QUESTION ON YOUR LAPTOP. THE", "NUMBER IS COUNTED FROM YOUR", "ORDERS, SO IT IS EXACT."], { x: 142, y: 670, size: 27, at: 32.0, cls: "subt", stagger: 0.05, style: { opacity: 0.88 } }));
-    const pr = makePrinter(s.inner, { x: PX, w: PW, led: C.plum });
-    const sl = slices(pr.content, PW, [
-      { src: "../marketing/shots/ask.png", y0: 0, y1: 550 },
-      { src: "../marketing/shots/ask.png", y0: 700, y1: 872 },
-    ]);
-    const S = sl.s, top = sl.at[0];
-    // Typing into the real input: cover the placeholder, type the question.
-    el("div", "cover", pr.content, { left: 54 * S, top: top + 222 * S, width: 648 * S, height: 56 * S });
-    const typed = el("div", "", pr.content, { position: "absolute", left: 60 * S, top: top + 237 * S, fontSize: 19.6, lineHeight: 1, color: C.ink, zIndex: 5, whiteSpace: "pre" });
-    const Q = "HOW MUCH DID I SPEND ON BIRYANI?";
-    const T_TYPE = 32.25, PER = 0.042;
-    for (let i = 0; i < Q.length; i++) if (Q[i] !== " ") cue(T_TYPE + i * PER, "key", { v: 0.6 });
-    const press = el("div", "", pr.content, { position: "absolute", left: 710 * S, top: top + 218 * S, width: 113 * S, height: 67 * S, background: C.paper, zIndex: 5, opacity: 0 });
-    cue(33.75, "click");
-    s.ups.push(deviceStamp(pr.content, S, [175, 819, 319, 851], sl.at[1] - 700 * S, 34.55));
-    cue(31.2, "print", { dur: 0.75, r0: 11, r1: 11 });
-    cue(33.95, "print", { dur: 0.45, r0: 14, r1: 14 });
-    s.ups.push((t) => {
-      const n = Math.max(0, Math.min(Q.length, Math.floor((t - T_TYPE) / PER) + 1));
-      const caret = t > 31.9 && t < 33.9 && Math.floor(t * 3) % 2 === 0;
-      typed.textContent = (t >= T_TYPE ? Q.slice(0, n) : "") + (caret ? "_" : " ");
-      press.style.opacity = t >= 33.75 && t < 33.87 ? 0.45 : 0;
-      const L = t < 33.95 ? lerp(0, sl.at[1], E.inOut(seg(t, 31.2, 31.95))) : lerp(sl.at[1], sl.end + 30, E.inOut(seg(t, 33.95, 34.4)));
-      pr.len(L);
-    });
-    s.ups.push(makeStub(s.inner, { label: "SPENT ON BIRYANI", value: "₹26,550", note: "ACROSS 50 ORDERS", x: 816, y: 700, at: 35.0 }));
-  }
-
-  // =====================================================================================
-  // H. 36-40 s. The 14 facts: all that leaves.
-  // =====================================================================================
-  {
-    const s = addScene(36, C.mustard, C.ink);
-    s.ups.push(textLines(s.inner, ["PRIVATE BY DESIGN"], { x: 144, y: 236, size: 24, at: 36.05, cls: "kick", style: { opacity: 0.8 } }));
-    s.ups.push(textLines(s.inner, ["14 ROUNDED", "FACTS. THAT IS", "ALL THAT LEAVES."], { x: 136, y: 286, size: 100, at: 36.15, stagger: 0.1 }));
-    s.ups.push(textLines(s.inner, ["NO ITEM LIST. NO DATES.", "NO ADDRESSES. NO EXACT AMOUNTS.", "YOU SEE THE LIST AND SAY", "YES BEFORE ANYTHING IS SENT."], { x: 142, y: 640, size: 27, at: 37.0, cls: "subt", stagger: 0.05, style: { opacity: 0.88 } }));
-    const pr = makePrinter(s.inner, { x: PX, w: PW, led: C.mustard });
-    const sl = slices(pr.content, PW, [{ src: "../marketing/shots/home.png", y0: 1000, y1: 2178 }]);
-    const S = sl.s, top = sl.at[0];
-    const press = el("div", "", pr.content, { position: "absolute", left: 56 * S, top: top + (2072 - 1000) * S, width: 768 * S, height: 97 * S, background: C.paper, zIndex: 5, opacity: 0 });
-    cue(38.3, "click");
-    const stamp = el("div", "stamp", pr.content, { left: 0, top: top + 430, fontSize: 34, color: C.red, background: C.paper, textAlign: "center", lineHeight: 1.25 }, "SENT: 14 FACTS<br>NOTHING ELSE");
-    stamp.style.left = (PW - 400) / 2 + "px";
-    stamp.style.width = "400px";
-    s.ups.push(slam(stamp, 38.65, 1.8));
-    cue(36.2, "print", { dur: 1.8, r0: 12, r1: 12 });
-    s.ups.push((t) => {
-      press.style.opacity = t >= 38.3 && t < 38.42 ? 0.45 : 0;
-      pr.len(lerp(0, sl.end + 30, E.inOut(seg(t, 36.2, 38.0))));
-    });
-  }
-
-  // =====================================================================================
-  // I. 40-44 s. Wrapped: story cards print side by side.
-  // =====================================================================================
-  {
-    const s = addScene(40, C.indigo, C.paper);
-    const CARDS = ["card-6.png", "card-2.png", "card-7.png", "card-12.png"];
-    const w = 360, gap = 24, x0 = (W - (CARDS.length * w + (CARDS.length - 1) * gap)) / 2;
-    const total = CARDS.length * w + (CARDS.length - 1) * gap;
-    const root = el("div", "asm", s.inner);
-    const body = el("div", "pbody", root, { left: x0 - 60, width: total + 120, top: -40, height: SLOT + 52 });
-    el("span", "nm", body, null, "RECEIPTS WRAPPED");
-    el("span", "led", body, { background: C.indigo });
-    const scale = w / 856, h = Math.round(1530 * scale);
-    const papers = CARDS.map((src, i) => {
-      const sheet = el("div", "sheet", root, { left: x0 + i * (w + gap), top: SLOT });
-      const paper = el("div", "paper", sheet, { width: w, height: 0 });
-      img(paper, `../marketing/shots/${src}`, { display: "block", width: 1080 * scale, marginLeft: -112 * scale, marginTop: -200 * scale });
-      el("div", "slot", root, { left: x0 + i * (w + gap) - 14, width: w + 28, top: SLOT - 9, height: 18 });
-      const t0 = 40.15 + i * 0.5;
-      cue(t0, "print", { dur: 0.42, r0: 26, r1: 26 });
-      return { paper, sheet, t0 };
-    });
-    s.ups.push((t) => papers.forEach(({ paper, sheet, t0 }) => {
-      const L = Math.floor(lerp(0, h - 4, E.inOut(seg(t, t0, t0 + 0.42))) / 4) * 4;
-      paper.style.height = L + "px";
-      sheet.style.visibility = L > 2 ? "visible" : "hidden";
-    }));
-    s.ups.push(textLines(s.inner, ["YOUR WRAPPED"], { x: x0 + 4, y: 812, size: 24, at: 42.25, cls: "kick", style: { opacity: 0.8 } }));
-    s.ups.push(textLines(s.inner, ["YOUR YEAR, AS STORY CARDS."], { x: x0 - 4, y: 850, size: 76, at: 42.35 }));
-    s.ups.push(textLines(s.inner, ["GEMINI WRITES THE JOKES FROM 14 ROUNDED TOTALS. CARDS WITH REAL NAMES ARE DRAWN ON YOUR LAPTOP."], { x: x0, y: 958, size: 24, at: 42.8, cls: "subt", style: { opacity: 0.85 } }));
-  }
-
-  // =====================================================================================
-  // J. 44-48 s. The last receipt tears off; end card.
-  // =====================================================================================
-  {
-    const s = addScene(44, C.ink, C.paper, { ink: true });
+    const s = addScene(TJ, C.ink, C.paper, { ink: true });
     const pr = makePrinter(s.inner, { x: 610, w: 700, led: C.bright });
     const r = rng(5);
     let bars = "";
@@ -464,14 +383,15 @@
       <h2 style="letter-spacing:0;padding:0;font-size:64px;margin-top:8px">₹10,203</h2><div class="dash"></div>
       <p class="sub" style="letter-spacing:.08em">THANK YOU FOR NOT UPLOADING YOUR LIFE</p>
       <div class="bars" style="justify-content:center;margin:24px 0 10px">${bars}</div><p class="sub" style="font-size:18px;padding-bottom:30px">RECEIPTS FOR CHROME</p>`);
-    cue(44.1, "print", { dur: 0.9, r0: 12, r1: 12 });
-    cue(45.3, "tear");
+    const T = (x) => TJ + x;
+    cue(T(0.1), "print", { dur: 0.9, r0: 12, r1: 12 });
+    cue(T(1.3), "tear");
     s.ups.push((t) => {
-      pr.len(lerp(0, 452, E.inOut(seg(t, 44.1, 45.0))));
-      const fall = E.in(seg(t, 45.32, 45.95));
+      pr.len(lerp(0, 452, E.inOut(seg(t, T(0.1), T(1.0)))));
+      const fall = E.in(seg(t, T(1.32), T(1.95)));
       pr.sheet.style.transform = `translate3d(0,${(fall * 1150).toFixed(1)}px,0)`;
       // Once torn off, the piece has a torn edge at the top as well.
-      const torn = t >= 45.32 ? "var(--zz-both)" : "";
+      const torn = t >= T(1.32) ? "var(--zz-both)" : "";
       pr.paper.style.webkitMask = torn;
       pr.paper.style.mask = torn;
     });
@@ -479,17 +399,23 @@
     const icon = img(row, "../public/icons/icon128.png", { width: 150, height: 150, display: "block" });
     const word = el("div", "h1", row, { fontSize: 150, letterSpacing: "0.14em", lineHeight: 1 });
     const letters = [..."RECEIPTS"].map((ch) => el("span", "", word, { opacity: 0 }, ch));
-    letters.forEach((_, i) => cue(45.75 + i * 0.07, "key", { v: 1.1 }));
-    s.ups.push(slam(icon, 45.65, 1.5, "stamp"));
-    s.ups.push((t) => letters.forEach((l, i) => (l.style.opacity = t >= 45.75 + i * 0.07 ? 1 : 0)));
-    s.ups.push(textLines(s.inner, ["SPENDING CALCULATOR &amp; HIDDEN FEE FINDER"], { x: 0, y: 610, w: W, align: "center", size: 52, at: 46.35 }));
-    s.ups.push(textLines(s.inner, ["FOR CHROME. READ ON YOUR LAPTOP BY GEMINI NANO."], { x: 0, y: 700, w: W, align: "center", size: 28, at: 46.7, cls: "subt", style: { opacity: 0.75 } }));
-    s.ups.push(textLines(s.inner, ["BUILT WITH GEMINI NANO AND FIREBASE AI LOGIC"], { x: 0, y: 960, w: W, align: "center", size: 20, at: 47.05, cls: "kick", style: { opacity: 0.5 } }));
+    letters.forEach((_, i) => cue(T(1.75) + i * 0.07, "key", { v: 1.1 }));
+    s.ups.push(slam(icon, T(1.65), 1.5, "stamp"));
+    s.ups.push((t) => letters.forEach((l, i) => (l.style.opacity = t >= T(1.75) + i * 0.07 ? 1 : 0)));
+    s.ups.push(textLines(s.inner, ["SPENDING CALCULATOR &amp; HIDDEN FEE FINDER"], { x: 0, y: 610, w: W, align: "center", size: 52, at: T(2.35) }));
+    s.ups.push(textLines(s.inner, ["FOR CHROME. READ ON YOUR LAPTOP BY GEMINI NANO."], { x: 0, y: 700, w: W, align: "center", size: 28, at: T(2.7), cls: "subt", style: { opacity: 0.75 } }));
+    s.ups.push(textLines(s.inner, ["BUILT WITH GEMINI NANO AND FIREBASE AI LOGIC"], { x: 0, y: 960, w: W, align: "center", size: 20, at: T(3.05), cls: "kick", style: { opacity: 0.5 } }));
   }
   cue(DUR - 0.01, "end");
 
   // ---------- frame renderer ----------
-  function renderFrame(t) {
+  async function renderFrame(t) {
+    drawFrame(t);
+    // Footage frames load as the clock moves; never capture one half decoded.
+    if (PENDING.length) await Promise.all(PENDING.splice(0));
+  }
+
+  function drawFrame(t) {
     for (let i = 0; i < scenes.length; i++) {
       const s = scenes[i], next = scenes[i + 1];
       const from = s.start - (s.wipe ? WIPE : 0);
@@ -517,7 +443,7 @@
     HEAD = he.offsetTop + 40;
     window.renderFrame = renderFrame;
     const q = new URLSearchParams(location.search);
-    renderFrame(Number(q.get("t") || 0));
+    await renderFrame(Number(q.get("t") || 0));
     return true;
   })();
 })();

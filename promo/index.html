@@ -71,12 +71,32 @@
       .mini-stamp { position: absolute; z-index: 5; border: 2px solid var(--red); color: var(--red); background: var(--paper); border-radius: 5px; font-weight: 700; letter-spacing: 0.1em; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
       .cover { position: absolute; background: var(--paper); z-index: 4; }
 
+      /* A plain browser window around the footage */
+      .win { position: absolute; z-index: 3; background: #dedcd6; border-radius: 14px 14px 4px 4px; overflow: hidden; filter: drop-shadow(18px 18px 0 rgba(0, 0, 0, 0.24)); }
+      .win-tabs { height: 40px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 14px 0 12px; }
+      .win-tab { height: 32px; width: 230px; background: #fcfcfa; border-radius: 10px 10px 0 0; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 14px; color: var(--ink); text-transform: none; }
+      .win-tab img { width: 16px; height: 16px; }
+      .win-tab span { flex: 1; }
+      .win-tab b { font-weight: 400; color: #77776f; }
+      .win-ctl { display: flex; gap: 22px; padding-bottom: 12px; }
+      .win-ctl i { display: block; width: 12px; height: 2px; background: #55554f; }
+      .win-ctl i:nth-child(2) { height: 11px; background: none; border: 2px solid #55554f; margin-top: -5px; }
+      .win-ctl i:nth-child(3) { position: relative; width: 12px; height: 12px; margin-top: -6px; background: none; }
+      .win-ctl i:nth-child(3)::before, .win-ctl i:nth-child(3)::after { content: ""; position: absolute; left: -1px; top: 5px; width: 14px; height: 2px; background: #55554f; transform: rotate(45deg); }
+      .win-ctl i:nth-child(3)::after { transform: rotate(-45deg); }
+      .win-bar { height: 44px; background: #fcfcfa; display: flex; align-items: center; gap: 14px; padding: 0 14px; border-bottom: 1px solid #dedcd6; }
+      .win-nav { display: flex; gap: 14px; }
+      .win-nav i { display: block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #9a9a93; }
+      .win-omni { flex: 1; height: 30px; border-radius: 15px; background: #eeece7; display: flex; align-items: center; padding: 0 16px; font-size: 14px; color: #55554f; text-transform: none; }
+      .win-ext { width: 20px; height: 20px; }
+
       .bars { display: flex; height: 70px; gap: 0; }
       .bars i { display: block; height: 100%; background: var(--ink); }
     </style>
   </head>
   <body>
     <div id="stage"></div>
+    <script src="footage/edit.js"></script>
     <script src="promo.js"></script>
   </body>
 </html>

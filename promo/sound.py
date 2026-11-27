@@ -271,6 +271,9 @@ def main():
     chords = [[220.0, 261.63, 329.63], [174.61, 220.0, 261.63], [196.0, 261.63, 329.63], [196.0, 246.94, 293.66]]
     K, HC, HO, CL = kick(), hat(), hat(True), clap()
 
+    # The film ends with the receipt tearing off; the beat stops there and a pad rings out.
+    OUT = next(c["t"] for c in cues if c["type"] == "tear")
+
     def bar_of(t):
         return int(t // (4 * BEAT)) % 4
 
@@ -279,7 +282,7 @@ def main():
         t = b * BEAT
         intro = t < 4
         title = 18 <= t < 19.5
-        outro = t >= 45.3
+        outro = t >= OUT
         if outro:
             continue
         # kick
@@ -308,13 +311,13 @@ def main():
     # chord stabs on each bar from the drop, pad under the intro, title and outro
     for bar in range(int(DUR / (4 * BEAT))):
         t = bar * 4 * BEAT
-        if 10 <= t < 45:
+        if 10 <= t < OUT - 0.3:
             ch = chords[bar_of(t)]
             for off in (0, 1.5 * BEAT, 2.5 * BEAT):
                 music.add(t + off, chord(ch, 0.6, decay=0.18), 0.16, pan=-0.15)
     music.add(0, pad([110.0, 164.81, 220.0], 4.4, fade=1.5), 0.32)
     music.add(18, pad([130.81, 196.0, 261.63], 3.3, fade=0.6), 0.28)
-    music.add(45.25, pad([110.0, 164.81, 220.0, 329.63], 3.2, fade=0.4), 0.3)
+    music.add(OUT - 0.05, pad([110.0, 164.81, 220.0, 329.63], DUR - OUT + 0.4, fade=0.4), 0.3)
 
     # sound effects from the composition's cues
     for c in cues:
