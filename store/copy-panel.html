@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receipts store fields</title>
+<style>
+  :root { --ink: #1c1c1a; --paper: #fcfcfa; --grey: #6b6b65; --line: #d9d7d0; --red: #c8452f; --bg: #e9e7e1; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 "IBM Plex Mono", Consolas, monospace; }
+  main { max-width: 860px; margin: 32px auto 80px; padding: 0 16px; }
+  h1 { font-size: 22px; letter-spacing: 0.2em; margin: 0 0 4px; }
+  .lede { color: var(--grey); margin: 0 0 28px; }
+  h2 { font-size: 13px; letter-spacing: 0.22em; color: var(--grey); margin: 34px 0 10px; }
+  .field { background: var(--paper); border: 1px solid var(--line); padding: 14px 16px; margin: 0 0 12px; }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .label { font-weight: 700; font-size: 13px; letter-spacing: 0.08em; }
+  .where { color: var(--grey); font-size: 12px; }
+  pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font: inherit; }
+  button { font: 700 12px/1 inherit; letter-spacing: 0.12em; background: var(--ink); color: var(--paper); border: 0; padding: 9px 14px; cursor: pointer; white-space: nowrap; }
+  button.done { background: var(--red); }
+  ul { margin: 0; padding-left: 20px; }
+  .tick { color: var(--red); font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <h1>RECEIPTS</h1>
+  <p class="lede">Chrome Web Store fields, in dashboard order. Name, summary and icon come from the zip; everything here is pasted.</p>
+
+  <h2>1. PACKAGE</h2>
+  <div class="field"><div class="head"><span class="label">Upload this zip</span></div>
+    <pre>release/receipts-0.2.1.zip</pre></div>
+
+  <h2>2. STORE LISTING</h2>
+  <div class="field"><div class="head"><span class="label">Description</span><button data-copy="desc">COPY</button></div>
+<pre id="desc">How much did you spend on Amazon this year? On Swiggy? And how much of that was fees?
+
+Receipts is a spending calculator and hidden fee finder for your online orders. It reads your order history on Amazon, Swiggy, Flipkart, Blinkit, BookMyShow and more, right on your laptop, and shows you what you spent and every fee you paid on top: platform fee, delivery fee, packing charges, convenience fee, surge, small cart fee.
+
+YOUR YEAR, ITEMISED
+Tick the shops you use, or open any shop's order history page and click the Receipts icon. Receipts uses your existing sign-in, and Gemini Nano, the AI model built into Chrome, reads the orders on your laptop. You get your total spend, your orders by month, your top shops, your regulars and your biggest buy.
+
+EVERY FEE, FOUND
+The fees receipt lists each kind of fee per app and how often you paid it, your fees by month and the biggest single fee. It also works out whether a membership like Swiggy One or DashPass would have paid for itself, and how many orders it takes to break even.
+
+ASK YOUR RECEIPTS
+"How much did I pay in delivery fees in March?" "How much did I spend on biryani?" Gemini Nano reads the question on your laptop and the answer is counted from your own orders, so it is exact.
+
+YOUR SPENDING WRAPPED
+Shareable story cards for your year. Gemini in the cloud writes the funny lines from about a dozen rounded totals that you see and approve first. Cards with real restaurant and product names are drawn on your laptop and never sent.
+
+PRIVATE BY DESIGN
+- Your orders, items, fees and questions are read on your laptop, not on a server.
+- Only rounded totals you approve go to the cloud, and every request is listed under "What left this device".
+- No account, no analytics, no ads. Your saved year stays in your browser and "Forget this year" deletes it.
+
+WORKS WITH
+India: Amazon.in, Swiggy, Flipkart, Blinkit, BookMyShow. In beta: Myntra, AJIO, Tata CLiQ, JioMart, Uber.
+US: Amazon.com. In beta: Walmart, Target, DoorDash, Uber Eats, Instacart, eBay, Etsy, Uber.
+Any other shop: open its order history page and click the Receipts icon.
+
+NO ORDERS HANDY? Try the built-in demo store or a sample year.
+
+Needs Chrome on a desktop with Gemini Nano (Chrome 139 or later). Without Nano, the demo store and sample years still work.</pre></div>
+  <div class="field"><div class="head"><span class="label">Category</span><button data-copy="cat">COPY</button></div><pre id="cat">Shopping</pre></div>
+  <div class="field"><div class="head"><span class="label">Language</span></div><pre>English</pre></div>
+  <div class="field"><div class="head"><span class="label">Images</span><span class="where">drag in from the marketing folder</span></div>
+    <ul>
+      <li>Store icon 128x128: public/icons/icon128.png</li>
+      <li>Screenshots 1280x800, in this order: marketing/store-1.png, store-2.png, store-3.png, store-4.png, store-5.png</li>
+      <li>Small promo tile 440x280: marketing/tile-440x280.png</li>
+      <li>Marquee 1400x560: marketing/marquee-1400x560.png</li>
+    </ul></div>
+  <div class="field"><div class="head"><span class="label">Promo video (optional)</span></div><pre>YouTube link to promo/out/receipts-promo.mp4, once uploaded</pre></div>
+
+  <h2>3. PRIVACY PRACTICES</h2>
+  <div class="field"><div class="head"><span class="label">Single purpose</span><button data-copy="purpose">COPY</button></div>
+    <pre id="purpose">Shows the user a private summary of their own online order history and the fees they paid, read on their device.</pre></div>
+  <div class="field"><div class="head"><span class="label">storage</span><button data-copy="p-storage">COPY</button></div>
+    <pre id="p-storage">Saves the user's finished year (orders, item labels and their Wrapped) on their own computer, so it reopens instantly without reading their shops again.</pre></div>
+  <div class="field"><div class="head"><span class="label">unlimitedStorage</span><button data-copy="p-unlimited">COPY</button></div>
+    <pre id="p-unlimited">A full year of order history can exceed the default local storage quota. The saved year stays on the user's computer and "Forget this year" deletes it.</pre></div>
+  <div class="field"><div class="head"><span class="label">scripting</span><button data-copy="p-scripting">COPY</button></div>
+    <pre id="p-scripting">Reads the order-history page of a shop the user ticked, inside a background tab opened with the user's own sign-in, and reads the order page the user clicked the Receipts icon on. Nothing else is read.</pre></div>
+  <div class="field"><div class="head"><span class="label">activeTab</span><button data-copy="p-active">COPY</button></div>
+    <pre id="p-active">When the user clicks the Receipts icon on a shop's order page, Receipts reads that one page to find the orders and fees on it.</pre></div>
+  <div class="field"><div class="head"><span class="label">Host permissions</span><button data-copy="p-host">COPY</button></div>
+    <pre id="p-host">Optional host permissions, requested only for the shops the user ticks (Amazon, Swiggy, Flipkart, Blinkit, BookMyShow and others), to open that shop's order-history page with the user's own sign-in and read their orders. No shop is accessed unless the user ticks it and grants access.</pre></div>
+  <div class="field"><div class="head"><span class="label">Remote code</span></div>
+    <pre>No, I am not using remote code. All code is in the package.</pre></div>
+  <div class="field"><div class="head"><span class="label">Data usage: tick these</span></div>
+    <ul>
+      <li><span class="tick">tick</span> Website content (the user's order-history pages)</li>
+      <li><span class="tick">tick</span> Financial and payment information (purchase totals and fees from those pages)</li>
+      <li>Leave the rest unticked</li>
+    </ul>
+    <p class="where" style="margin:10px 0 6px">Then the three certifications (read them before you agree):</p>
+    <ul>
+      <li>Not sold to third parties</li>
+      <li>Not used or transferred for purposes unrelated to the single purpose</li>
+      <li>Not used or transferred to determine creditworthiness or for lending</li>
+    </ul></div>
+  <div class="field"><div class="head"><span class="label">Privacy policy URL</span><button data-copy="privacy">COPY</button></div>
+    <pre id="privacy">https://github.com/gottostartsomewhere/receipts/blob/main/PRIVACY.md</pre></div>
+
+  <h2>4. TEST INSTRUCTIONS</h2>
+  <div class="field"><div class="head"><span class="label">For reviewers and judges</span><button data-copy="test">COPY</button></div>
+<pre id="test">1. Click the Receipts icon. "Demo store" is selected: press READ THE DEMO STORE. Gemini Nano reads a made-up order page on your computer and checks every order and fee against it (about 1 to 3 minutes, faster on a GPU).
+2. Look through the Wrapped, Fees and Ask tabs. Try "How much did I pay in fees?".
+3. For instant results, pick "Sample year: Seattle" or "Sample year: Chennai".
+4. If you shop on any supported site, tick it, or open your order page there and click the Receipts icon.</pre></div>
+
+  <h2>5. DISTRIBUTION</h2>
+  <div class="field"><div class="head"><span class="label">Visibility</span></div>
+    <pre>Unlisted (judges get the link). Free. All regions. Switch to Public after judging.</pre></div>
+</main>
+<script>
+  for (const b of document.querySelectorAll("button[data-copy]")) {
+    b.addEventListener("click", async () => {
+      const text = document.getElementById(b.dataset.copy).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const ta = Object.assign(document.createElement("textarea"), { value: text });
+        document.body.append(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      b.textContent = "COPIED";
+      b.classList.add("done");
+      setTimeout(() => ((b.textContent = "COPY"), b.classList.remove("done")), 1500);
+    });
+  }
+</script>
+</body>
+</html>
