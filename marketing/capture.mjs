@@ -30,7 +30,7 @@ const shotPaper = async (name, height) => {
 await shotPaper("start.png", 900);
 
 // 2. Run the Chennai sample year
-await page.click('input[name="sample"][value="chennai"]');
+await page.click('label.pill:has(input[value="chennai"])');
 await page.click("#start");
 await page.waitForSelector("#screen-home:not([hidden])", { timeout: 60000 });
 

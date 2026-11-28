@@ -268,14 +268,81 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 .answers .a .dots { flex: 1; border-bottom: 1px dotted var(--ink-faint); transform: translateY(-4px); }
 .answers .d { font-size: 11px; color: var(--ink-soft); }
 
-/* Start */
-.intro { list-style: none; margin: 0 0 18px; padding: 0; }
-.intro li { display: flex; gap: 10px; padding: 4px 0; color: var(--ink-soft); }
-.intro .n { flex: none; width: 20px; height: 20px; border: 1.5px solid var(--ink); display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--ink); }
-.intro strong { color: var(--ink); }
-.more-shops { margin-top: 8px; }
-.more-shops summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); }
-.more-shops summary:hover { color: var(--ink); }
+/* Start: one line of pitch, shop tiles, three pills, the button */
+.pitch { font-size: 17px; font-weight: 700; letter-spacing: 0.02em; margin: 4px 0 2px; }
+.pitch-sub { font-size: 12px; color: var(--ink-soft); margin: 0 0 20px; }
+.web-note { margin: -8px 0 18px; }
+.block { margin: 0 0 20px; }
+.label { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--ink-soft); margin: 0 0 8px; }
+
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 86px;
+  padding: 12px 6px 10px;
+  background: var(--paper);
+  border: 1.5px solid var(--paper-edge);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
+}
+.tile img { width: 30px; height: 30px; border-radius: 7px; object-fit: contain; }
+.tile img.blank { background: var(--paper-edge); }
+.tile-name { line-height: 1.25; }
+.tile:hover { border-color: var(--ink-faint); color: var(--ink); }
+.tile input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.tile:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); color: var(--ink); font-weight: 600; }
+.tile:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* a check badge in the corner once ticked */
+.tile::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.2 2.2 4.8-4.8' fill='none' stroke='%23fcfcfa' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 10px no-repeat;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.15s, transform 0.15s;
+}
+.tile:has(input:checked)::after { opacity: 1; transform: none; }
+.tile-beta { position: absolute; top: 6px; left: 7px; font-size: 8px; letter-spacing: 0.12em; color: var(--ink-faint); }
+.tile-more { border-style: dashed; }
+.tile-more::after { display: none; }
+.tile-more .more-n { font-size: 18px; font-weight: 700; line-height: 30px; color: var(--ink); }
+.tile-more.open { background: var(--paper-edge); }
+.tiles-more .label { margin-top: 14px; }
+
+.hint { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; font-size: 11px; color: var(--ink-soft); }
+.hint img { width: 16px; height: 16px; }
+.pages:not(:empty) { margin-top: 6px; }
+
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { position: relative; padding: 7px 12px 6px; border: 1.5px solid var(--paper-edge); color: var(--ink-soft); font-size: 12px; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.pill:hover { border-color: var(--ink-faint); color: var(--ink); }
+.pill input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.pill:has(input:checked) { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.pill:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* with a real shop ticked, the samples don't apply */
+.start:has(input[name="shop"]:checked) .try { opacity: 0.4; }
+
+.nano { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 20px 0 0; font-size: 11px; letter-spacing: 0.1em; color: var(--ink-soft); }
+.nano b { color: var(--ink); font-weight: 700; }
+.nano .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); }
+.nano[data-state="available"] .dot { background: #2f8f5b; }
+.nano[data-state="unavailable"] .dot { background: var(--stamp-device); }
+.start .print { margin-top: 10px; }
 
 /* Reading */
 .timer { font-size: 11px; color: var(--ink-soft); margin-bottom: 8px; }
@@ -287,6 +354,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px 
 .tabs button + button { border-left: 1.5px solid var(--ink); }
 .tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
 .payload .strong dt, .payload .strong dd { color: var(--ink); font-weight: 700; }
+.row-icon { width: 15px; height: 15px; border-radius: 4px; margin-right: 7px; vertical-align: -3px; object-fit: contain; }
 .home-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .home-actions .ghost { margin-top: 0; font-size: 12px; }
 @media (max-width: 400px) { .home-actions { grid-template-columns: 1fr; } }

@@ -75,41 +75,96 @@ const SHOPS: ShopOption[] = [
 ];
 const HOME_REGION: "IN" | "US" = /Asia\/(Calcutta|Kolkata)/.test(Intl.DateTimeFormat().resolvedOptions().timeZone) ? "IN" : "US";
 
-function shopGrid(box: HTMLElement, list: ShopOption[], ticked: Set<string>) {
-  box.replaceChildren();
-  const regions: ("IN" | "US")[] = HOME_REGION === "IN" ? ["IN", "US"] : ["US", "IN"];
-  for (const region of regions) {
-    const shops = list.filter((s) => s.region === region);
-    if (!shops.length) continue;
-    const h = document.createElement("p");
-    h.className = "shops-region";
-    h.textContent = region === "IN" ? "India" : "United States";
-    const grid = document.createElement("div");
-    grid.className = "shops-grid";
-    for (const shop of shops) {
-      const row = document.createElement("label");
-      row.className = "shop check";
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.name = "shop";
-      input.value = shop.id;
-      input.checked = ticked.has(shop.id);
-      input.addEventListener("change", refreshStartLabel);
-      const name = document.createElement("span");
-      name.textContent = shop.label;
-      row.append(input, name);
-      grid.append(row);
-    }
-    box.append(h, grid);
+// Each shop's own icon (its favicon), bundled so the start screen makes no network calls.
+const SHOP_ICONS = import.meta.glob<string>("./shops/*.png", { eager: true, query: "?url", import: "default" });
+
+// Shop names as they appear on orders ("Swiggy", "Amazon.in", "Uber Eats") to their icons.
+const ICON_BY_NAME: Record<string, string> = {
+  swiggy: "swiggy", blinkit: "blinkit", bookmyshow: "bookmyshow", flipkart: "flipkart", myntra: "myntra", ajio: "ajio",
+  tatacliq: "tatacliq", jiomart: "jiomart", walmart: "walmart", target: "target", doordash: "doordash", ubereats: "ubereats",
+  instacart: "instacart", ebay: "ebay", etsy: "etsy", uber: "uber_in", uberrides: "uber_in", amazonin: "amazon_in", amazoncom: "amazon_com",
+};
+function iconForShop(name: string): string | undefined {
+  const key = name.toLowerCase().replace(/[^a-z]/g, "");
+  const id = ICON_BY_NAME[key] ?? (key === "amazon" ? (HOME_REGION === "IN" ? "amazon_in" : "amazon_com") : undefined);
+  return id ? SHOP_ICONS[`./shops/${id}.png`] : undefined;
+}
+/** Puts the shop's icon in front of the last line added to a list. */
+function withShopIcon(list: HTMLElement, shop: string, nameHidden: boolean) {
+  const src = iconForShop(shop);
+  const dt = list.lastElementChild?.querySelector("dt");
+  if (!src || !dt) return;
+  const img = document.createElement("img");
+  img.className = "row-icon";
+  img.src = src;
+  img.alt = nameHidden ? shop : "";
+  dt.prepend(img);
+}
+
+/** A shop as a tile: its icon and name; tap to tick. The checkbox inside keeps it a form field. */
+function shopTile(shop: ShopOption, ticked: Set<string>): HTMLElement {
+  const tile = document.createElement("label");
+  tile.className = "tile";
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.name = "shop";
+  input.value = shop.id;
+  input.checked = ticked.has(shop.id);
+  input.addEventListener("change", refreshStartLabel);
+  const icon = document.createElement("img");
+  icon.alt = "";
+  const src = SHOP_ICONS[`./shops/${shop.id}.png`];
+  if (src) icon.src = src;
+  else icon.className = "blank";
+  const name = document.createElement("span");
+  name.className = "tile-name";
+  name.textContent = shop.label;
+  tile.append(input, icon, name);
+  if (shop.beta) {
+    const beta = document.createElement("span");
+    beta.className = "tile-beta";
+    beta.textContent = "beta";
+    tile.append(beta);
   }
+  return tile;
 }
 
 async function renderShops() {
   const ticked = new Set(await loadTickedShops());
-  shopGrid($("shops"), SHOPS.filter((s) => !s.beta), ticked);
-  shopGrid($("shops-beta"), SHOPS.filter((s) => s.beta), ticked);
-  // Open the beta drawer if something in it was ticked last time.
-  if (SHOPS.some((s) => s.beta && ticked.has(s.id))) ($("shops-beta").closest("details") as HTMLDetailsElement).open = true;
+  // Up front: the checked shops of your own region. Everything else sits behind "More shops".
+  const main = SHOPS.filter((s) => !s.beta && s.region === HOME_REGION);
+  const rest = SHOPS.filter((s) => !main.includes(s));
+  const box = $("shops");
+  box.replaceChildren(...main.map((s) => shopTile(s, ticked)));
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "tile tile-more";
+  more.id = "more-shops";
+  more.innerHTML = `<span class="more-n">+${rest.length}</span><span class="tile-name"></span>`;
+  box.append(more);
+  const drawer = $("shops-beta");
+  drawer.replaceChildren();
+  const regions: ("IN" | "US")[] = HOME_REGION === "IN" ? ["IN", "US"] : ["US", "IN"];
+  for (const region of regions) {
+    const list = rest.filter((s) => s.region === region);
+    if (!list.length) continue;
+    const h = document.createElement("p");
+    h.className = "label";
+    h.textContent = region === "IN" ? "India" : "United States";
+    const grid = document.createElement("div");
+    grid.className = "tiles";
+    grid.append(...list.map((s) => shopTile(s, ticked)));
+    drawer.append(h, grid);
+  }
+  const setOpen = (open: boolean) => {
+    drawer.hidden = !open;
+    more.setAttribute("aria-expanded", String(open));
+    more.classList.toggle("open", open);
+    more.querySelector(".tile-name")!.textContent = open ? "Fewer shops" : "More shops";
+  };
+  more.addEventListener("click", () => setOpen(drawer.hidden === true));
+  // Open the drawer if something in it was ticked last time.
+  setOpen(rest.some((s) => ticked.has(s.id)));
   refreshStartLabel();
 }
 void renderShops();
@@ -159,6 +214,7 @@ async function refreshNano() {
     unavailable: "NOT ON THIS DEVICE",
   };
   $("nano-state").textContent = text[nano];
+  $("nano-chip").dataset.state = nano;
   $("cloud-optin").hidden = nano !== "unavailable" || !firebaseConfigured;
 }
 void refreshNano().then(() => {
@@ -626,13 +682,21 @@ function renderFees(report: ReturnType<typeof feeReport>, currency: Currency) {
   p("BY APP", "fees-head");
   const byApp = document.createElement("dl");
   byApp.className = "payload";
-  for (const s of report.byShop) line(byApp, s.shop, m(s.amount));
+  for (const s of report.byShop) {
+    line(byApp, s.shop, m(s.amount));
+    withShopIcon(byApp, s.shop, false);
+  }
   box.append(byApp);
 
   p("EVERY KIND OF FEE", "fees-head");
   const byKind = document.createElement("dl");
   byKind.className = "payload";
-  for (const l of report.lines) line(byKind, `${l.shop} ${l.label} ×${l.times}`, m(l.amount));
+  for (const l of report.lines) {
+    // with the shop's icon in front, the shop's name doesn't need repeating on every line
+    const icon = Boolean(iconForShop(l.shop));
+    line(byKind, icon ? `${l.label} ×${l.times}` : `${l.shop} ${l.label} ×${l.times}`, m(l.amount));
+    if (icon) withShopIcon(byKind, l.shop, true);
+  }
   line(byKind, "Total fees", m(report.total), true);
   box.append(byKind);
 
@@ -677,20 +741,16 @@ function renderFees(report: ReturnType<typeof feeReport>, currency: Currency) {
     p("WOULD A MEMBERSHIP HAVE PAID OFF?", "fees-head");
     const dl = document.createElement("dl");
     dl.className = "payload";
-    for (const o of offers) line(dl, o.name, `worth it under ${m(o.perYear)}/yr`, true);
-    box.append(dl);
     for (const o of offers) {
-      p(
-        `You paid ${o.shop} ${m(o.paid)} in fees ${o.name} waives, on ${o.times} order${o.times === 1 ? "" : "s"} so far this year. ` +
-          `A year of ${o.name} costing less than about ${m(o.perYear)} would have paid for itself. Prices change, so check the app.`,
-        "small-note",
-      );
+      line(dl, o.name, `worth it under ${m(o.perYear)}/yr`, true);
+      withShopIcon(dl, o.shop, false);
     }
+    box.append(dl);
+    // one short line of working per offer; the break-even is the number that matters
+    for (const o of offers) p(`${o.name}: ${m(o.paid)} of fees it waives, on ${o.times} order${o.times === 1 ? "" : "s"} so far.`, "small-note");
+    p("Prices change, so check the app.", "small-note");
   }
-  p(
-    "Charges like these, shown late at checkout, are what India's consumer regulator calls drip pricing; in 2026 it fined nine platforms over dark patterns. A fee only counts here if it is printed on that order.",
-    "small-note",
-  );
+  p("Fees added late at checkout are what India's consumer regulator calls drip pricing. A fee counts here only if it is printed on that order.", "small-note");
 }
 
 // ================= ASK =================

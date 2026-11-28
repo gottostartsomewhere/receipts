@@ -178,17 +178,17 @@ await sleep(900);
 await scroll(await top("#shops-fieldset", 20), 800);
 await rect("shops", "#shops-fieldset");
 for (const name of ["Amazon.in", "Swiggy", "Flipkart", "Blinkit", "BookMyShow"]) {
-  await glideTo(page.locator("label.shop", { hasText: name }).first(), 360, 0.08, 0.5);
+  await glideTo(page.locator("label.tile", { hasText: name }).first(), 360);
   await click();
   await sleep(160);
 }
-await glideTo(page.locator(".more-shops summary"), 420, 0.2);
+await glideTo(page.locator("#more-shops"), 420);
 await click();
 await sleep(500);
 await rect("shops-all", "#shops-fieldset");
 await sleep(1400);
-await scroll(await top("#pages-fieldset", 30), 900);
-await rect("any-shop", "#pages-fieldset");
+await scroll(await top("#pages-hint", 260), 900);
+await rect("any-shop", "#pages-hint");
 await sleep(1600);
 mark("start-end");
 
@@ -198,7 +198,7 @@ await page.waitForSelector("#start");
 await page.waitForFunction(() => /ready/i.test(document.getElementById("nano-state").textContent), null, { timeout: 60000 });
 await scroll(await top("#start", 330), 700);
 mark("demo");
-await rect("nano-ready", ".line.status");
+await rect("nano-ready", "#nano-chip");
 await glideTo(page.locator("#start"), 520);
 await sleep(200);
 await click();
@@ -237,7 +237,7 @@ await page.evaluate(() => {
 });
 await scroll(await top('input[name="sample"][value="chennai"]', 300), 700);
 mark("sample");
-await glideTo(page.locator('label.line:has(input[value="chennai"])'), 450, 0.2);
+await glideTo(page.locator('label.pill:has(input[value="chennai"])'), 450, 0.2);
 await click();
 await sleep(300);
 await glideTo(page.locator("#start"), 450);

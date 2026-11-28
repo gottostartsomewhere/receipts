@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Receipts YouTube thumbnails</title>
+<link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-400.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-700.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/ibm-plex-mono/latin-ext-700.css">
+<style>
+  /* YouTube thumbnails, 1280x720. ?v=demo or ?v=promo. The bottom-right corner stays clear:
+     YouTube puts the video length there. */
+  :root { --ink: #1c1c1a; --paper: #fcfcfa; --red: #c8452f; --tomato: #c8452f;
+    --zz: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 18px 51% repeat-x, linear-gradient(#000 0 0) top / 100% 51% no-repeat; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 720px; overflow: hidden; }
+  body { font-family: "IBM Plex Mono", Consolas, monospace; text-transform: uppercase; -webkit-font-smoothing: antialiased; }
+  .t { position: relative; width: 1280px; height: 720px; overflow: hidden; background: var(--bg); color: var(--fg); }
+  .chip { position: absolute; left: 64px; top: 70px; background: var(--paper); color: var(--ink); font-size: 24px; font-weight: 700; letter-spacing: 0.16em; padding: 12px 20px 10px; box-shadow: 7px 7px 0 rgba(0,0,0,.25); }
+  .big { position: absolute; left: 56px; font-weight: 700; letter-spacing: -0.03em; line-height: 0.95; }
+  .line { position: absolute; left: 64px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.05; }
+  .brand { position: absolute; left: 64px; bottom: 54px; display: flex; align-items: center; gap: 14px; font-size: 22px; font-weight: 700; letter-spacing: 0.3em; }
+  .brand img { width: 40px; height: 40px; }
+  /* the real fees receipt from the app, hanging straight, torn at the bottom */
+  .sheet { position: absolute; right: 70px; top: 0; filter: drop-shadow(14px 14px 0 rgba(0,0,0,.28)); }
+  .paper { width: 360px; height: 560px; overflow: hidden; background: var(--paper); -webkit-mask: var(--zz); mask: var(--zz); padding-top: 14px; }
+  .paper img { display: block; width: 360px; margin-top: -64px; } /* starts below the app's tab bar */
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  const v = new URLSearchParams(location.search).get("v") || "demo";
+  const root = document.getElementById("root");
+  const receipt = `<div class="sheet"><div class="paper"><img src="shots/fees.png" alt=""></div></div>`;
+  const brand = `<div class="brand"><img src="../public/icons/icon128.png" alt="">RECEIPTS</div>`;
+  if (v === "demo") {
+    root.innerHTML = `<div class="t" style="--bg:#1c1c1a;--fg:#fcfcfa">
+      <div class="chip">ONE YEAR OF FEES, ON TOP</div>
+      <div class="big" style="top:150px;font-size:178px">₹10,203</div>
+      <div class="line" style="top:350px;font-size:62px;color:var(--red)">NOBODY ADDS<br>THEM UP.</div>
+      <div class="line" style="top:500px;font-size:40px;opacity:.9">GEMINI NANO DOES,<br>ON MY LAPTOP.</div>
+      ${receipt}${brand}</div>`;
+  } else {
+    root.innerHTML = `<div class="t" style="--bg:#c8452f;--fg:#fcfcfa">
+      <div class="chip">SPENDING CALCULATOR FOR CHROME</div>
+      <div class="big" style="top:150px;font-size:128px">EVERY FEE<br>YOU PAID<br>ON TOP.</div>
+      <div class="line" style="top:560px;font-size:34px;opacity:.92">AMAZON, SWIGGY, FLIPKART, BLINKIT</div>
+      ${receipt}</div>`;
+  }
+</script>
+</body>
+</html>

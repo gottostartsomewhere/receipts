@@ -22,47 +22,36 @@
         </header>
 
         <!-- ============ START ============ -->
-        <section id="screen-start" class="screen">
-          <ol class="intro">
-            <li><span class="n">1</span><span>Reads your order history <strong>on this laptop</strong>, with Gemini Nano.</span></li>
-            <li><span class="n">2</span><span>Adds up what you spent, and the <strong>fees added on top</strong>.</span></li>
-            <li><span class="n">3</span><span>You approve the <strong>few rounded totals</strong> that go to the cloud for your Wrapped.</span></li>
-          </ol>
+        <section id="screen-start" class="screen start">
+          <p class="pitch">Find every fee you paid on top.</p>
+          <p class="pitch-sub">Read on this laptop by Gemini Nano.</p>
 
-          <p class="small-note" id="web-note" hidden>This is the web version. Reading your own shops needs the Receipts Chrome extension; here you can try the demo store or a sample year, with the same Gemini Nano and the same privacy rules.</p>
+          <p class="small-note web-note" id="web-note" hidden>Web version: try the demo store or a sample year. Your own shops need the Chrome extension.</p>
 
-          <fieldset class="lines extension-only" id="shops-fieldset">
-            <legend>YOUR SHOPS</legend>
-            <div id="shops" class="shops"></div>
-            <details class="more-shops">
-              <summary>More shops (beta)</summary>
-              <div id="shops-beta" class="shops"></div>
-              <p class="small-note">Beta shops use the same reader but nobody has checked them against a real account yet.</p>
-            </details>
-            <p class="small-note">Each shop opens in a background tab with your existing sign-in, then closes. Receipts never reads delivery addresses.</p>
-          </fieldset>
+          <div class="extension-only block" id="shops-fieldset">
+            <p class="label">Your shops</p>
+            <div id="shops" class="tiles" role="group" aria-label="Your shops"></div>
+            <div id="shops-beta" class="tiles-more" hidden></div>
+            <p class="hint" id="pages-hint">Or click <img src="/icons/icon32.png" alt="the Receipts icon" /> on any shop's order page.</p>
+            <div id="pages-list" class="pages"></div>
+          </div>
 
-          <fieldset class="lines extension-only" id="pages-fieldset">
-            <legend>ANY OTHER SHOP</legend>
-            <div id="pages-list"></div>
-            <p class="small-note" id="pages-hint">Open any shop's order history page and click the Receipts icon there. Nano reads the orders off that page, on this laptop.</p>
-          </fieldset>
+          <div class="block try">
+            <p class="label">No accounts? Try</p>
+            <div class="pills" role="radiogroup" aria-label="Try without accounts">
+              <label class="pill"><input type="radio" name="sample" value="demo" checked /><span>Demo store</span></label>
+              <label class="pill"><input type="radio" name="sample" value="chennai" /><span>Chennai ₹</span></label>
+              <label class="pill"><input type="radio" name="sample" value="seattle" /><span>Seattle $</span></label>
+            </div>
+          </div>
 
-          <fieldset class="lines">
-            <legend>NO ACCOUNTS? TRY ONE OF THESE</legend>
-            <label class="line check"><input type="radio" name="sample" value="demo" checked /><span>Demo store</span><span class="dots"></span><span class="tag">Nano reads a real page</span></label>
-            <label class="line check"><input type="radio" name="sample" value="chennai" /><span>Sample year: Chennai</span><span class="dots"></span><span>₹</span></label>
-            <label class="line check"><input type="radio" name="sample" value="seattle" /><span>Sample year: Seattle</span><span class="dots"></span><span>$</span></label>
-            <p class="small-note">The demo store is a made-up shop page (<a href="./demo-shop.html" target="_blank" rel="noopener">open it</a>). Receipts reads it the same way it reads a real one.</p>
-          </fieldset>
-
-          <div class="line status"><span>GEMINI NANO</span><span class="dots"></span><span id="nano-state">checking</span></div>
           <label class="line check small" id="cloud-optin" hidden>
             <input type="checkbox" id="allow-cloud" />
             <span>No Nano here. Let the cloud label item names (never prices, dates or addresses).</span>
           </label>
 
           <p class="error" id="start-note" hidden></p>
+          <p class="nano" id="nano-chip" data-state="checking"><span class="dot" aria-hidden="true"></span>Gemini Nano <b id="nano-state">checking</b></p>
           <button class="print" id="start" type="button">READ THE DEMO STORE</button>
           <button class="ghost" id="back-home" type="button" hidden>Back to your saved year</button>
         </section>
