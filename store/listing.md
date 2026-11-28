@@ -22,7 +22,9 @@ Receipts: Spending Calculator & Hidden Fee Finder
 
 Comes from `description` in public/manifest.json:
 
-Spending calculator for Amazon, Swiggy, Flipkart, Blinkit and more. Finds every delivery, platform and packing fee you paid on top.
+Adds up a year of your online orders and finds every platform, delivery and packing fee on top. Read privately on your laptop.
+
+(Shop names were taken out of the summary in 0.2.2 after the keyword-spam rejection; they appear once, in the description.)
 
 ## Category
 
